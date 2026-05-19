@@ -9,8 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as QuranRouteImport } from './routes/quran'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PrayerTimesRouteImport } from './routes/prayer-times'
+import { Route as MosquesRouteImport } from './routes/mosques'
+import { Route as LiveRouteImport } from './routes/live'
 import { Route as IndexRouteImport } from './routes/index'
 
+const QuranRoute = QuranRouteImport.update({
+  id: '/quran',
+  path: '/quran',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrayerTimesRoute = PrayerTimesRouteImport.update({
+  id: '/prayer-times',
+  path: '/prayer-times',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MosquesRoute = MosquesRouteImport.update({
+  id: '/mosques',
+  path: '/mosques',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +49,96 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/live': typeof LiveRoute
+  '/mosques': typeof MosquesRoute
+  '/prayer-times': typeof PrayerTimesRoute
+  '/profile': typeof ProfileRoute
+  '/quran': typeof QuranRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/live': typeof LiveRoute
+  '/mosques': typeof MosquesRoute
+  '/prayer-times': typeof PrayerTimesRoute
+  '/profile': typeof ProfileRoute
+  '/quran': typeof QuranRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/live': typeof LiveRoute
+  '/mosques': typeof MosquesRoute
+  '/prayer-times': typeof PrayerTimesRoute
+  '/profile': typeof ProfileRoute
+  '/quran': typeof QuranRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/live'
+    | '/mosques'
+    | '/prayer-times'
+    | '/profile'
+    | '/quran'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/live' | '/mosques' | '/prayer-times' | '/profile' | '/quran'
+  id:
+    | '__root__'
+    | '/'
+    | '/live'
+    | '/mosques'
+    | '/prayer-times'
+    | '/profile'
+    | '/quran'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LiveRoute: typeof LiveRoute
+  MosquesRoute: typeof MosquesRoute
+  PrayerTimesRoute: typeof PrayerTimesRoute
+  ProfileRoute: typeof ProfileRoute
+  QuranRoute: typeof QuranRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/quran': {
+      id: '/quran'
+      path: '/quran'
+      fullPath: '/quran'
+      preLoaderRoute: typeof QuranRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prayer-times': {
+      id: '/prayer-times'
+      path: '/prayer-times'
+      fullPath: '/prayer-times'
+      preLoaderRoute: typeof PrayerTimesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mosques': {
+      id: '/mosques'
+      path: '/mosques'
+      fullPath: '/mosques'
+      preLoaderRoute: typeof MosquesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +151,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LiveRoute: LiveRoute,
+  MosquesRoute: MosquesRoute,
+  PrayerTimesRoute: PrayerTimesRoute,
+  ProfileRoute: ProfileRoute,
+  QuranRoute: QuranRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
