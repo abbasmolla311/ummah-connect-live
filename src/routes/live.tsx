@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Radio, Pause, Play, Volume2, Users, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
-import { mosques } from "@/lib/mock-data";
+import { useMosques } from "@/lib/use-mosques";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -14,11 +14,16 @@ export const Route = createFileRoute("/live")({
 });
 
 function LivePage() {
-  const liveMosques = mosques.filter((m) => m.isLive);
-  const [active, setActive] = useState(liveMosques[0]?.id ?? "");
+  const { mosques, loading } = useMosques();
+  const liveMosques = mosques.filter((m) => m.is_live);
+  const [active, setActive] = useState("");
   const [playing, setPlaying] = useState(true);
   const [volume, setVolume] = useState(0.85);
   const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!active && liveMosques.length > 0) setActive(liveMosques[0].id);
+  }, [liveMosques, active]);
 
   useEffect(() => {
     if (!playing) return;
@@ -26,13 +31,17 @@ function LivePage() {
     return () => clearInterval(id);
   }, [playing]);
 
+  if (loading) {
+    return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-muted-foreground">Loading…</div>;
+  }
+
   const current = liveMosques.find((m) => m.id === active) ?? liveMosques[0];
 
   if (!current) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="font-serif text-3xl">No live broadcasts right now</h1>
-        <p className="mt-3 text-muted-foreground">Check back at the next adhan time.</p>
+        <p className="mt-3 text-muted-foreground">Check back at the next adhan time, or follow a mosque to be notified.</p>
       </div>
     );
   }
@@ -47,7 +56,6 @@ function LivePage() {
 
       <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-          {/* Player */}
           <div className="rounded-3xl border border-gold/20 bg-primary/30 p-8 text-primary-foreground backdrop-blur-xl md:p-12">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-gold">
               <span className="h-2 w-2 rounded-full bg-destructive pulse-live" />
@@ -55,15 +63,14 @@ function LivePage() {
             </div>
 
             <div className="mt-8">
-              <div className="font-arabic text-3xl text-gold">{current.arabicName}</div>
+              {current.arabic_name && <div className="font-arabic text-3xl text-gold">{current.arabic_name}</div>}
               <h1 className="mt-2 font-serif text-4xl md:text-6xl">{current.name}</h1>
               <p className="mt-3 flex items-center gap-2 text-primary-foreground/75">
-                <MapPin className="h-4 w-4" /> {current.village}, {current.city} · {current.distanceKm} km
+                <MapPin className="h-4 w-4" /> {current.village ? `${current.village}, ` : ""}{current.city}, {current.country}
               </p>
-              <p className="mt-1 text-sm text-primary-foreground/60">Imam: {current.imam}</p>
+              {current.imam_name && <p className="mt-1 text-sm text-primary-foreground/60">Imam: {current.imam_name}</p>}
             </div>
 
-            {/* Equalizer */}
             <div className="mt-10 flex items-end justify-center gap-1.5 h-32">
               {Array.from({ length: 40 }).map((_, i) => {
                 const h = playing ? 0.3 + Math.abs(Math.sin((i + elapsed) * 0.5)) * 0.7 : 0.15;
@@ -77,7 +84,6 @@ function LivePage() {
               })}
             </div>
 
-            {/* Controls */}
             <div className="mt-10 flex items-center justify-center gap-6">
               <div className="text-sm text-primary-foreground/70 font-mono">{mm}:{ss}</div>
               <button
@@ -104,15 +110,12 @@ function LivePage() {
             <div className="mt-8 flex items-center justify-between border-t border-gold/15 pt-5 text-sm">
               <span className="flex items-center gap-2 text-primary-foreground/80">
                 <Users className="h-4 w-4 text-gold" />
-                {current.listeners?.toLocaleString()} listening with you
+                {current.listeners_count.toLocaleString()} listening · {current.followers_count.toLocaleString()} followers
               </span>
-              <button className="rounded-full border border-gold/40 px-4 py-1.5 text-xs font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors">
-                Follow mosque
-              </button>
+              <span className="text-xs text-gold">Real WebRTC audio · coming next phase</span>
             </div>
           </div>
 
-          {/* Other live mosques */}
           <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
             <h2 className="font-serif text-2xl text-foreground">Other live mosques</h2>
             <p className="text-sm text-muted-foreground">Switch to listen to another live azan.</p>
@@ -122,7 +125,7 @@ function LivePage() {
                   key={m.id}
                   onClick={() => { setActive(m.id); setElapsed(0); }}
                   className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
-                    m.id === active
+                    m.id === current.id
                       ? "border-secondary bg-accent shadow-emerald"
                       : "border-border hover:border-secondary/50 hover:bg-accent/50"
                   }`}
@@ -132,14 +135,11 @@ function LivePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-foreground truncate">{m.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{m.village} · {m.listeners} listening</div>
+                    <div className="text-xs text-muted-foreground truncate">{m.village ?? m.city} · {m.listeners_count} listening</div>
                   </div>
                   <span className="flex h-2 w-2 shrink-0 rounded-full bg-destructive pulse-live" />
                 </button>
               ))}
-            </div>
-            <div className="mt-6 rounded-xl bg-muted p-4 text-xs text-muted-foreground">
-              <strong className="text-foreground">Demo mode:</strong> Connect Lovable Cloud to enable real-time WebRTC audio streaming, push notifications, and listener analytics.
             </div>
           </div>
         </div>
