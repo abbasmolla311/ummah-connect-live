@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Radio, MapPin, Clock, BookOpen, Compass, Heart, Bell, Users } from "lucide-react";
 import heroImg from "@/assets/mosque-hero.jpg";
-import { mosques, todayPrayers, hijriDate, gregorianDate, getNextPrayer, dailyAyah, dailyHadith } from "@/lib/mock-data";
+import { todayPrayers, hijriDate, gregorianDate, getNextPrayer, dailyAyah, dailyHadith } from "@/lib/mock-data";
+import { useMosques } from "@/lib/use-mosques";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,10 +16,11 @@ export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
-const liveMosques = mosques.filter((m) => m.isLive);
 const next = getNextPrayer();
 
 function HomePage() {
+  const { mosques } = useMosques();
+  const liveMosques = mosques.filter((m) => m.is_live);
   return (
     <>
       {/* Hero */}
@@ -115,15 +117,20 @@ function HomePage() {
                   <span key={i} className="w-1 rounded-full bg-gradient-emerald sound-bar" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.1}s` }} />
                 ))}
               </div>
-              <div className="font-arabic text-gold">{m.arabicName}</div>
+              {m.arabic_name && <div className="font-arabic text-gold">{m.arabic_name}</div>}
               <h3 className="mt-1 font-serif text-2xl text-foreground">{m.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{m.village} · {m.distanceKm} km away</p>
+              <p className="mt-1 text-sm text-muted-foreground">{m.village ?? m.city}</p>
               <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{m.imam}</span>
-                <span className="flex items-center gap-1 font-medium text-primary"><Users className="h-3.5 w-3.5" /> {m.listeners}</span>
+                <span className="text-muted-foreground">{m.imam_name ?? "—"}</span>
+                <span className="flex items-center gap-1 font-medium text-primary"><Users className="h-3.5 w-3.5" /> {m.listeners_count}</span>
               </div>
             </Link>
           ))}
+          {liveMosques.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
+              No mosques broadcasting right now.
+            </div>
+          )}
         </div>
       </section>
 
@@ -170,7 +177,7 @@ function HomePage() {
               </p>
             </div>
             <Link
-              to="/profile"
+              to="/mosque-admin"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-gold px-6 py-4 text-sm font-semibold text-gold-foreground shadow-gold hover:scale-[1.02] transition-transform self-start"
             >
               Register your mosque →
