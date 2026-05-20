@@ -14,7 +14,10 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrayerTimesRouteImport } from './routes/prayer-times'
 import { Route as MosquesRouteImport } from './routes/mosques'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
 
 const QuranRoute = QuranRouteImport.update({
   id: '/quran',
@@ -41,60 +44,97 @@ const LiveRoute = LiveRouteImport.update({
   path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedMosqueAdminRoute =
+  AuthenticatedMosqueAdminRouteImport.update({
+    id: '/mosque-admin',
+    path: '/mosque-admin',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/quran': typeof QuranRoute
+  '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/quran': typeof QuranRoute
+  '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/auth': typeof AuthRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/quran': typeof QuranRoute
+  '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/live'
     | '/mosques'
     | '/prayer-times'
     | '/profile'
     | '/quran'
+    | '/mosque-admin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/live' | '/mosques' | '/prayer-times' | '/profile' | '/quran'
+  to:
+    | '/'
+    | '/auth'
+    | '/live'
+    | '/mosques'
+    | '/prayer-times'
+    | '/profile'
+    | '/quran'
+    | '/mosque-admin'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/live'
     | '/mosques'
     | '/prayer-times'
     | '/profile'
     | '/quran'
+    | '/_authenticated/mosque-admin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AuthRoute: typeof AuthRoute
   LiveRoute: typeof LiveRoute
   MosquesRoute: typeof MosquesRoute
   PrayerTimesRoute: typeof PrayerTimesRoute
@@ -139,6 +179,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -146,11 +200,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/mosque-admin': {
+      id: '/_authenticated/mosque-admin'
+      path: '/mosque-admin'
+      fullPath: '/mosque-admin'
+      preLoaderRoute: typeof AuthenticatedMosqueAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedMosqueAdminRoute: typeof AuthenticatedMosqueAdminRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedMosqueAdminRoute: AuthenticatedMosqueAdminRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AuthRoute: AuthRoute,
   LiveRoute: LiveRoute,
   MosquesRoute: MosquesRoute,
   PrayerTimesRoute: PrayerTimesRoute,

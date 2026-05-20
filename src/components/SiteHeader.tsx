@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const links = [
   { to: "/", label: "Home" },
@@ -8,11 +9,12 @@ const links = [
   { to: "/mosques", label: "Mosques" },
   { to: "/prayer-times", label: "Prayer Times" },
   { to: "/quran", label: "Quran" },
-  { to: "/profile", label: "Profile" },
 ] as const;
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -38,13 +40,31 @@ export function SiteHeader() {
               {l.label}
             </Link>
           ))}
-          <Link
-            to="/live"
-            className="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-gold px-4 py-2 text-sm font-semibold text-gold-foreground shadow-gold transition-transform hover:scale-[1.02]"
-          >
-            <span className="h-2 w-2 rounded-full bg-destructive pulse-live" />
-            Listen Live
-          </Link>
+
+          {user ? (
+            <>
+              <Link
+                to="/mosque-admin"
+                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                activeProps={{ className: "rounded-md px-3 py-2 text-sm font-medium text-primary bg-accent" }}
+              >
+                <Settings className="inline h-4 w-4 mr-1" />Admin
+              </Link>
+              <button
+                onClick={signOut}
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth"
+              className="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-gold px-4 py-2 text-sm font-semibold text-gold-foreground shadow-gold transition-transform hover:scale-[1.02]"
+            >
+              Sign in
+            </Link>
+          )}
         </nav>
 
         <button
@@ -69,6 +89,31 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
+            {user ? (
+              <>
+                <Link
+                  to="/mosque-admin"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
+                >
+                  Admin
+                </Link>
+                <button
+                  onClick={() => { setOpen(false); signOut(); }}
+                  className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-accent"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setOpen(false)}
+                className="rounded-md px-3 py-2.5 text-sm font-medium text-primary hover:bg-accent"
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       )}
