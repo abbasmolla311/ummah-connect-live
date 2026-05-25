@@ -18,6 +18,7 @@ import { Route as MosquesRouteImport } from './routes/mosques'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as HadithRouteImport } from './routes/hadith'
 import { Route as DuasRouteImport } from './routes/duas'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -68,6 +69,11 @@ const DuasRoute = DuasRouteImport.update({
   path: '/duas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -92,6 +98,7 @@ const AuthenticatedMosqueAdminRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/calendar'
     | '/duas'
     | '/hadith'
     | '/live'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/calendar'
     | '/duas'
     | '/hadith'
     | '/live'
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/calendar'
     | '/duas'
     | '/hadith'
     | '/live'
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CalendarRoute: typeof CalendarRoute
   DuasRoute: typeof DuasRoute
   HadithRoute: typeof HadithRoute
   LiveRoute: typeof LiveRoute
@@ -259,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DuasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -306,6 +326,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  CalendarRoute: CalendarRoute,
   DuasRoute: DuasRoute,
   HadithRoute: HadithRoute,
   LiveRoute: LiveRoute,
