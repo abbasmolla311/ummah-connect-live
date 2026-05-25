@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as QuranRouteImport } from './routes/quran'
+import { Route as QiblaRouteImport } from './routes/qibla'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrayerTimesRouteImport } from './routes/prayer-times'
 import { Route as MosquesRouteImport } from './routes/mosques'
@@ -24,6 +25,11 @@ import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenti
 const QuranRoute = QuranRouteImport.update({
   id: '/quran',
   path: '/quran',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QiblaRoute = QiblaRouteImport.update({
+  id: '/qibla',
+  path: '/qibla',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
     | '/mosque-admin'
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
     | '/mosque-admin'
   id:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
     | '/_authenticated/mosque-admin'
   fileRoutesById: FileRoutesById
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   MosquesRoute: typeof MosquesRoute
   PrayerTimesRoute: typeof PrayerTimesRoute
   ProfileRoute: typeof ProfileRoute
+  QiblaRoute: typeof QiblaRoute
   QuranRoute: typeof QuranRoute
 }
 
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/quran'
       fullPath: '/quran'
       preLoaderRoute: typeof QuranRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qibla': {
+      id: '/qibla'
+      path: '/qibla'
+      fullPath: '/qibla'
+      preLoaderRoute: typeof QiblaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   MosquesRoute: MosquesRoute,
   PrayerTimesRoute: PrayerTimesRoute,
   ProfileRoute: ProfileRoute,
+  QiblaRoute: QiblaRoute,
   QuranRoute: QuranRoute,
 }
 export const routeTree = rootRouteImport
