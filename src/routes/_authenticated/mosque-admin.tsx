@@ -223,3 +223,73 @@ function Field({ label, children, className = "" }: { label: string; children: R
     </label>
   );
 }
+
+function MosquePostPanel({ mosqueId }: { mosqueId: string }) {
+  const { user } = useAuth();
+  const [mode, setMode] = useState<"announcement" | "event">("announcement");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [category, setCategory] = useState("general");
+  const [startsAt, setStartsAt] = useState("");
+  const [location, setLocation] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setBusy(true);
+    if (mode === "announcement") {
+      const { error } = await supabase.from("announcements").insert({
+        mosque_id: mosqueId, author_id: user.id, title, body, category,
+      });
+      if (error) { toast.error(error.message); setBusy(false); return; }
+      toast.success("Announcement posted");
+    } else {
+      if (!startsAt) { toast.error("Pick a start date/time"); setBusy(false); return; }
+      const { error } = await supabase.from("events").insert({
+        mosque_id: mosqueId, organizer_id: user.id, title, description: body, category,
+        starts_at: new Date(startsAt).toISOString(), location: location || null,
+      });
+      if (error) { toast.error(error.message); setBusy(false); return; }
+      toast.success("Event created");
+    }
+    setTitle(""); setBody(""); setStartsAt(""); setLocation("");
+    setBusy(false);
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-5 rounded-xl border border-border bg-background/40 p-4">
+      <div className="flex items-center gap-2">
+        {(["announcement", "event"] as const).map((m) => (
+          <button type="button" key={m} onClick={() => setMode(m)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${mode === m ? "bg-gradient-emerald text-gold shadow-emerald" : "border border-border text-muted-foreground hover:bg-accent"}`}>
+            {m}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <input required placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)}
+          className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary md:col-span-2" />
+        <select value={category} onChange={(e) => setCategory(e.target.value)}
+          className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
+          {mode === "announcement"
+            ? ["general","jumma","janaza","class","fundraising"].map((c) => <option key={c}>{c}</option>)
+            : ["general","jumma","taraweeh","quran-class","seminar","nikah"].map((c) => <option key={c}>{c}</option>)}
+        </select>
+        {mode === "event" && (
+          <>
+            <input type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
+            <input placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm md:col-span-2" />
+          </>
+        )}
+        <textarea placeholder={mode === "announcement" ? "Announcement body" : "Event description"} value={body} onChange={(e) => setBody(e.target.value)} rows={2}
+          className="rounded-lg border border-border bg-background p-2 text-sm outline-none focus:border-secondary md:col-span-2" required={mode === "announcement"} />
+      </div>
+      <button disabled={busy} className="mt-3 rounded-full bg-gradient-gold px-4 py-1.5 text-xs font-semibold text-gold-foreground shadow-gold disabled:opacity-50">
+        {busy ? "Posting…" : `Post ${mode}`}
+      </button>
+    </form>
+  );
+}
