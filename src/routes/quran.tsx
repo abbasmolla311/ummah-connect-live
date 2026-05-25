@@ -48,7 +48,7 @@ function QuranPage() {
   useEffect(() => {
     if (!user) { setBookmarks(new Set()); return; }
     supabase.from("bookmarks").select("ref_key").eq("kind", "ayah").eq("user_id", user.id)
-      .then(({ data }) => setBookmarks(new Set((data ?? []).map((b: { ref_key: string }) => b.ref_key))));
+      .then(({ data }) => setBookmarks(new Set(((data ?? []) as { ref_key: string }[]).map((b) => b.ref_key))));
   }, [user]);
 
   const toggleBookmark = async (surahNum: number, ayahNum: number, label: string) => {
