@@ -15,6 +15,7 @@ import { Route as PrayerTimesRouteImport } from './routes/prayer-times'
 import { Route as MosquesRouteImport } from './routes/mosques'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as HadithRouteImport } from './routes/hadith'
+import { Route as DuasRouteImport } from './routes/duas'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -50,6 +51,11 @@ const HadithRoute = HadithRouteImport.update({
   path: '/hadith',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DuasRoute = DuasRouteImport.update({
+  id: '/duas',
+  path: '/duas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -74,6 +80,7 @@ const AuthenticatedMosqueAdminRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/duas': typeof DuasRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/duas'
     | '/hadith'
     | '/live'
     | '/mosques'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/duas'
     | '/hadith'
     | '/live'
     | '/mosques'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/duas'
     | '/hadith'
     | '/live'
     | '/mosques'
@@ -147,6 +159,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DuasRoute: typeof DuasRoute
   HadithRoute: typeof HadithRoute
   LiveRoute: typeof LiveRoute
   MosquesRoute: typeof MosquesRoute
@@ -199,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HadithRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/duas': {
+      id: '/duas'
+      path: '/duas'
+      fullPath: '/duas'
+      preLoaderRoute: typeof DuasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  DuasRoute: DuasRoute,
   HadithRoute: HadithRoute,
   LiveRoute: LiveRoute,
   MosquesRoute: MosquesRoute,
@@ -256,3 +277,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
