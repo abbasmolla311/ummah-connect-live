@@ -133,6 +133,7 @@ function MosqueAdminPage() {
                   </span>
                 )}
               </div>
+              <MosquePostPanel mosqueId={m.id} />
             </article>
           ))
         )}
