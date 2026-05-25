@@ -9,19 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasbihRouteImport } from './routes/tasbih'
 import { Route as QuranRouteImport } from './routes/quran'
+import { Route as QiblaRouteImport } from './routes/qibla'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrayerTimesRouteImport } from './routes/prayer-times'
 import { Route as MosquesRouteImport } from './routes/mosques'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as HadithRouteImport } from './routes/hadith'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as DuasRouteImport } from './routes/duas'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
 
+const TasbihRoute = TasbihRouteImport.update({
+  id: '/tasbih',
+  path: '/tasbih',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuranRoute = QuranRouteImport.update({
   id: '/quran',
   path: '/quran',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QiblaRoute = QiblaRouteImport.update({
+  id: '/qibla',
+  path: '/qibla',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -42,6 +58,26 @@ const MosquesRoute = MosquesRouteImport.update({
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HadithRoute = HadithRouteImport.update({
+  id: '/hadith',
+  path: '/hadith',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DuasRoute = DuasRouteImport.update({
+  id: '/duas',
+  path: '/duas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -68,21 +104,33 @@ const AuthenticatedMosqueAdminRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/duas': typeof DuasRoute
+  '/events': typeof EventsRoute
+  '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/duas': typeof DuasRoute
+  '/events': typeof EventsRoute
+  '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesById {
@@ -90,11 +138,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/duas': typeof DuasRoute
+  '/events': typeof EventsRoute
+  '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRoute
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
+  '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRouteTypes {
@@ -102,32 +156,50 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/calendar'
+    | '/duas'
+    | '/events'
+    | '/hadith'
     | '/live'
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/mosque-admin'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/calendar'
+    | '/duas'
+    | '/events'
+    | '/hadith'
     | '/live'
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/mosque-admin'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/calendar'
+    | '/duas'
+    | '/events'
+    | '/hadith'
     | '/live'
     | '/mosques'
     | '/prayer-times'
     | '/profile'
+    | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/_authenticated/mosque-admin'
   fileRoutesById: FileRoutesById
 }
@@ -135,20 +207,40 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CalendarRoute: typeof CalendarRoute
+  DuasRoute: typeof DuasRoute
+  EventsRoute: typeof EventsRoute
+  HadithRoute: typeof HadithRoute
   LiveRoute: typeof LiveRoute
   MosquesRoute: typeof MosquesRoute
   PrayerTimesRoute: typeof PrayerTimesRoute
   ProfileRoute: typeof ProfileRoute
+  QiblaRoute: typeof QiblaRoute
   QuranRoute: typeof QuranRoute
+  TasbihRoute: typeof TasbihRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasbih': {
+      id: '/tasbih'
+      path: '/tasbih'
+      fullPath: '/tasbih'
+      preLoaderRoute: typeof TasbihRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quran': {
       id: '/quran'
       path: '/quran'
       fullPath: '/quran'
       preLoaderRoute: typeof QuranRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qibla': {
+      id: '/qibla'
+      path: '/qibla'
+      fullPath: '/qibla'
+      preLoaderRoute: typeof QiblaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -177,6 +269,34 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/live'
       preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hadith': {
+      id: '/hadith'
+      path: '/hadith'
+      fullPath: '/hadith'
+      preLoaderRoute: typeof HadithRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/duas': {
+      id: '/duas'
+      path: '/duas'
+      fullPath: '/duas'
+      preLoaderRoute: typeof DuasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -226,22 +346,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  CalendarRoute: CalendarRoute,
+  DuasRoute: DuasRoute,
+  EventsRoute: EventsRoute,
+  HadithRoute: HadithRoute,
   LiveRoute: LiveRoute,
   MosquesRoute: MosquesRoute,
   PrayerTimesRoute: PrayerTimesRoute,
   ProfileRoute: ProfileRoute,
+  QiblaRoute: QiblaRoute,
   QuranRoute: QuranRoute,
+  TasbihRoute: TasbihRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

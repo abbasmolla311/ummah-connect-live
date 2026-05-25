@@ -1,70 +1,139 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, Headphones, Bookmark } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Bookmark, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/quran")({
   head: () => ({
     meta: [
       { title: "Quran — DeenConnect" },
-      { name: "description", content: "Read and listen to the Holy Quran with translations and 7 reciters." },
+      { name: "description", content: "Read the Holy Quran in Arabic with English translation, surah by surah." },
     ],
   }),
   component: QuranPage,
 });
 
-const surahs = [
-  { n: 1, name: "Al-Fatihah", arabic: "الفاتحة", verses: 7, meaning: "The Opening" },
-  { n: 2, name: "Al-Baqarah", arabic: "البقرة", verses: 286, meaning: "The Cow" },
-  { n: 36, name: "Ya-Sin", arabic: "يس", verses: 83, meaning: "Ya Sin" },
-  { n: 55, name: "Ar-Rahman", arabic: "الرحمن", verses: 78, meaning: "The Most Merciful" },
-  { n: 67, name: "Al-Mulk", arabic: "الملك", verses: 30, meaning: "The Sovereignty" },
-  { n: 112, name: "Al-Ikhlas", arabic: "الإخلاص", verses: 4, meaning: "Sincerity" },
-];
+type Surah = { number: number; name: string; englishName: string; englishNameTranslation: string; numberOfAyahs: number; revelationType: string };
+type Ayah = { number: number; numberInSurah: number; text: string };
 
 function QuranPage() {
+  const [surahs, setSurahs] = useState<Surah[]>([]);
+  const [active, setActive] = useState<number>(1);
+  const [arabic, setArabic] = useState<Ayah[]>([]);
+  const [english, setEnglish] = useState<Ayah[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+
+  useEffect(() => {
+    fetch("https://api.alquran.cloud/v1/surah")
+      .then((r) => r.json())
+      .then((d) => setSurahs(d.data ?? []))
+      .catch(() => toast.error("Could not load surah list"));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      fetch(`https://api.alquran.cloud/v1/surah/${active}/quran-uthmani`).then((r) => r.json()),
+      fetch(`https://api.alquran.cloud/v1/surah/${active}/en.sahih`).then((r) => r.json()),
+    ])
+      .then(([a, e]) => { setArabic(a.data?.ayahs ?? []); setEnglish(e.data?.ayahs ?? []); })
+      .catch(() => toast.error("Could not load surah"))
+      .finally(() => setLoading(false));
+  }, [active]);
+
+  useEffect(() => {
+    if (!user) { setBookmarks(new Set()); return; }
+    supabase.from("bookmarks").select("ref_key").eq("kind", "ayah").eq("user_id", user.id)
+      .then(({ data }) => setBookmarks(new Set(((data ?? []) as { ref_key: string }[]).map((b) => b.ref_key))));
+  }, [user]);
+
+  const toggleBookmark = async (surahNum: number, ayahNum: number, label: string) => {
+    if (!user) { toast.error("Sign in to bookmark"); return; }
+    const refKey = `${surahNum}:${ayahNum}`;
+    if (bookmarks.has(refKey)) {
+      await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("kind", "ayah").eq("ref_key", refKey);
+      setBookmarks((s) => { const n = new Set(s); n.delete(refKey); return n; });
+    } else {
+      await supabase.from("bookmarks").insert({ user_id: user.id, kind: "ayah", ref_key: refKey, label });
+      setBookmarks((s) => new Set(s).add(refKey));
+      toast.success("Ayah bookmarked");
+    }
+  };
+
+  const currentSurah = surahs.find((s) => s.number === active);
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-      <div className="grid gap-8 md:grid-cols-[1.2fr_1fr]">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12">
+      <div className="mb-8 flex items-center gap-3">
+        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-emerald shadow-emerald">
+          <BookOpen className="h-6 w-6 text-gold" />
+        </div>
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-secondary">Holy Book</div>
-          <h1 className="mt-2 font-serif text-5xl">The Noble Quran</h1>
-          <p className="mt-3 max-w-xl text-muted-foreground">
-            114 Surahs · 6,236 verses · 7 reciters · Arabic, English, Urdu, Bengali translations.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-emerald">
-              <BookOpen className="h-4 w-4" /> Continue reading
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-3 text-sm font-semibold hover:bg-accent">
-              <Headphones className="h-4 w-4" /> Listen audio
-            </button>
-          </div>
-        </div>
-        <div className="rounded-3xl bg-gradient-emerald p-8 text-primary-foreground shadow-emerald islamic-pattern">
-          <div className="text-xs uppercase tracking-[0.2em] text-gold">Verse of the day</div>
-          <p className="font-arabic mt-6 text-right text-3xl text-gold leading-relaxed">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
-          <p className="mt-4 font-serif text-xl">"In the name of Allah, the Most Gracious, the Most Merciful."</p>
+          <h1 className="font-serif text-3xl md:text-4xl text-foreground">The Holy Quran</h1>
+          <p className="text-sm text-muted-foreground">Arabic · English (Sahih International)</p>
         </div>
       </div>
 
-      <h2 className="mt-16 font-serif text-2xl">Popular surahs</h2>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {surahs.map((s) => (
-          <div key={s.n} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-emerald cursor-pointer">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-gradient-gold font-serif text-lg text-gold-foreground">
-              {s.n}
-            </div>
-            <div className="flex-1">
-              <div className="font-serif text-lg text-foreground">{s.name}</div>
-              <div className="text-xs text-muted-foreground">{s.meaning} · {s.verses} verses</div>
-            </div>
-            <div className="font-arabic text-2xl text-secondary">{s.arabic}</div>
-            <Bookmark className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="rounded-2xl border border-border bg-card p-3 lg:max-h-[80vh] lg:overflow-y-auto">
+          <div className="space-y-1">
+            {surahs.map((s) => (
+              <button
+                key={s.number}
+                onClick={() => setActive(s.number)}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  active === s.number ? "bg-accent text-primary font-semibold" : "hover:bg-accent/50 text-foreground"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>{s.number}. {s.englishName}</span>
+                  <span className="font-arabic text-base text-gold">{s.name}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{s.englishNameTranslation} · {s.numberOfAyahs} ayat</div>
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </aside>
 
-      <div className="mt-12 rounded-2xl border border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
-        Full Quran content with audio playback will load from the Lovable Cloud database — enable it to activate.
+        <section className="rounded-2xl border border-border bg-card p-6 md:p-8">
+          {currentSurah && (
+            <div className="mb-6 border-b border-border pb-5 text-center">
+              <div className="font-arabic text-4xl text-gold">{currentSurah.name}</div>
+              <h2 className="mt-2 font-serif text-2xl text-foreground">{currentSurah.englishName}</h2>
+              <p className="text-sm text-muted-foreground">{currentSurah.englishNameTranslation} · {currentSurah.revelationType} · {currentSurah.numberOfAyahs} verses</p>
+            </div>
+          )}
+          {loading ? (
+            <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-6">
+              {arabic.map((a, i) => {
+                const refKey = `${active}:${a.numberInSurah}`;
+                const bookmarked = bookmarks.has(refKey);
+                return (
+                  <div key={a.number} className="border-b border-border/40 pb-5 last:border-0">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-emerald text-xs font-semibold text-gold">{a.numberInSurah}</span>
+                      <button
+                        onClick={() => toggleBookmark(active, a.numberInSurah, `${currentSurah?.englishName} ${a.numberInSurah}`)}
+                        className={`rounded-md p-1.5 transition-colors ${bookmarked ? "text-gold" : "text-muted-foreground hover:text-gold"}`}
+                        aria-label="Bookmark"
+                      >
+                        <Bookmark className="h-4 w-4" fill={bookmarked ? "currentColor" : "none"} />
+                      </button>
+                    </div>
+                    <p dir="rtl" className="font-arabic text-2xl md:text-3xl leading-loose text-foreground">{a.text}</p>
+                    <p className="mt-3 text-base text-muted-foreground">{english[i]?.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
