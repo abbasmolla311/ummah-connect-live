@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasbihRouteImport } from './routes/tasbih'
 import { Route as QuranRouteImport } from './routes/quran'
 import { Route as QiblaRouteImport } from './routes/qibla'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -22,6 +23,11 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
 
+const TasbihRoute = TasbihRouteImport.update({
+  id: '/tasbih',
+  path: '/tasbih',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuranRoute = QuranRouteImport.update({
   id: '/quran',
   path: '/quran',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesByTo {
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRoutesById {
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
+  '/tasbih': typeof TasbihRoute
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
 }
 export interface FileRouteTypes {
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/mosque-admin'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/mosque-admin'
   id:
     | '__root__'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/qibla'
     | '/quran'
+    | '/tasbih'
     | '/_authenticated/mosque-admin'
   fileRoutesById: FileRoutesById
 }
@@ -179,10 +191,18 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   QiblaRoute: typeof QiblaRoute
   QuranRoute: typeof QuranRoute
+  TasbihRoute: typeof TasbihRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasbih': {
+      id: '/tasbih'
+      path: '/tasbih'
+      fullPath: '/tasbih'
+      preLoaderRoute: typeof TasbihRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quran': {
       id: '/quran'
       path: '/quran'
@@ -294,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   QiblaRoute: QiblaRoute,
   QuranRoute: QuranRoute,
+  TasbihRoute: TasbihRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
