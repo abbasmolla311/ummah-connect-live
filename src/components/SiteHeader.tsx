@@ -9,6 +9,12 @@ const links = [
   { to: "/mosques", label: "Mosques" },
   { to: "/prayer-times", label: "Prayer Times" },
   { to: "/quran", label: "Quran" },
+  { to: "/hadith", label: "Hadith" },
+  { to: "/duas", label: "Duas" },
+  { to: "/qibla", label: "Qibla" },
+  { to: "/tasbih", label: "Tasbih" },
+  { to: "/calendar", label: "Calendar" },
+  { to: "/events", label: "Events" },
 ] as const;
 
 export function SiteHeader() {
@@ -28,14 +34,14 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-0.5 xl:flex">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
               activeOptions={{ exact: l.to === "/" }}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              activeProps={{ className: "rounded-md px-3 py-2 text-sm font-medium text-primary bg-accent" }}
+              className="rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              activeProps={{ className: "rounded-md px-2.5 py-2 text-sm font-medium text-primary bg-accent" }}
             >
               {l.label}
             </Link>
@@ -45,14 +51,14 @@ export function SiteHeader() {
             <>
               <Link
                 to="/mosque-admin"
-                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                activeProps={{ className: "rounded-md px-3 py-2 text-sm font-medium text-primary bg-accent" }}
+                className="rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                activeProps={{ className: "rounded-md px-2.5 py-2 text-sm font-medium text-primary bg-accent" }}
               >
                 <Settings className="inline h-4 w-4 mr-1" />Admin
               </Link>
               <button
                 onClick={signOut}
-                className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <LogOut className="h-3.5 w-3.5" /> Sign out
               </button>
@@ -68,7 +74,7 @@ export function SiteHeader() {
         </nav>
 
         <button
-          className="lg:hidden rounded-md p-2 text-foreground hover:bg-accent"
+          className="xl:hidden rounded-md p-2 text-foreground hover:bg-accent"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -77,8 +83,8 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background lg:hidden">
-          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-3">
+        <div className="border-t border-border bg-background xl:hidden">
+          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-1 px-4 py-3 sm:grid-cols-3">
             {links.map((l) => (
               <Link
                 key={l.to}
@@ -109,7 +115,7 @@ export function SiteHeader() {
               <Link
                 to="/auth"
                 onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2.5 text-sm font-medium text-primary hover:bg-accent"
+                className="col-span-full rounded-md bg-gradient-gold px-3 py-2.5 text-center text-sm font-semibold text-gold-foreground"
               >
                 Sign in
               </Link>
