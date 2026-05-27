@@ -129,14 +129,22 @@ function LivePage() {
               </div>
             </div>
 
+            <audio ref={audioRef} autoPlay playsInline className="hidden" />
+
             <div className="mt-8 flex items-center justify-between border-t border-gold/15 pt-5 text-sm">
               <span className="flex items-center gap-2 text-primary-foreground/80">
                 <Users className="h-4 w-4 text-gold" />
-                {current.listeners_count.toLocaleString()} listening · {current.followers_count.toLocaleString()} followers
+                {Math.max(listeners - 1, 0).toLocaleString()} live · {current.followers_count.toLocaleString()} followers
               </span>
-              <span className="text-xs text-gold">Real WebRTC audio · coming next phase</span>
+              <button onClick={enableNotifications} className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline">
+                <Bell className="h-3.5 w-3.5" /> Azan alerts
+              </button>
+              <span className={`text-xs ${connected ? "text-emerald-400" : "text-gold/70"}`}>
+                {connected ? "● LiveKit connected" : "Connecting…"}
+              </span>
             </div>
           </div>
+
 
           <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
             <h2 className="font-serif text-2xl text-foreground">Other live mosques</h2>
