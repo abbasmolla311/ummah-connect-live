@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Radio, Plus, MapPin, User as UserIcon } from "lucide-react";
+import { Radio, Plus, MapPin, User as UserIcon, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
+import { useBroadcaster } from "@/lib/use-livekit";
 
 export const Route = createFileRoute("/_authenticated/mosque-admin")({
   head: () => ({
@@ -115,23 +116,8 @@ function MosqueAdminPage() {
                   <div className="font-serif text-2xl text-primary">{m.followers_count}</div>
                 </div>
               </div>
-              <div className="mt-5 flex items-center gap-3 border-t border-border pt-4">
-                <button
-                  onClick={() => toggleLive(m)}
-                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
-                    m.is_live
-                      ? "bg-destructive text-destructive-foreground"
-                      : "bg-gradient-gold text-gold-foreground shadow-gold"
-                  }`}
-                >
-                  <span className={`h-2 w-2 rounded-full bg-current ${m.is_live ? "pulse-live" : ""}`} />
-                  {m.is_live ? "Stop broadcast" : "Start Azan broadcast"}
-                </button>
-                {m.is_live && (
-                  <span className="text-sm text-muted-foreground">
-                    {m.listeners_count} listening now
-                  </span>
-                )}
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+                <BroadcastControls mosque={m} onChange={load} />
               </div>
               <MosquePostPanel mosqueId={m.id} />
             </article>
@@ -139,6 +125,49 @@ function MosqueAdminPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function BroadcastControls({ mosque, onChange }: { mosque: Mosque; onChange: () => void }) {
+  const { broadcasting, start, stop } = useBroadcaster();
+
+  const toggle = async () => {
+    if (broadcasting || mosque.is_live) {
+      await stop();
+      await supabase.from("mosques").update({ is_live: false, live_started_at: null, listeners_count: 0 }).eq("id", mosque.id);
+      toast.success("Broadcast stopped");
+      onChange();
+    } else {
+      try {
+        await start(mosque.id);
+        await supabase.from("mosques").update({ is_live: true, live_started_at: new Date().toISOString() }).eq("id", mosque.id);
+        toast.success("Azan broadcast started — mic is live");
+        onChange();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to start broadcast");
+      }
+    }
+  };
+
+  const live = broadcasting || mosque.is_live;
+  return (
+    <>
+      <button
+        onClick={toggle}
+        className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
+          live ? "bg-destructive text-destructive-foreground" : "bg-gradient-gold text-gold-foreground shadow-gold"
+        }`}
+      >
+        {live ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        {live ? "Stop broadcast" : "Start Azan (live mic)"}
+      </button>
+      {live && (
+        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Radio className="h-3.5 w-3.5 text-destructive pulse-live" />
+          Broadcasting · {mosque.listeners_count} listening
+        </span>
+      )}
+    </>
   );
 }
 

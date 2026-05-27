@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Radio, Pause, Play, Volume2, Users, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Radio, Pause, Play, Volume2, Users, MapPin, Bell } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useMosques } from "@/lib/use-mosques";
+import { useLiveAudio } from "@/lib/use-livekit";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -21,6 +23,8 @@ function LivePage() {
   const [volume, setVolume] = useState(0.85);
   const [elapsed, setElapsed] = useState(0);
 
+  const { audioRef, connected, listeners } = useLiveAudio(active || null, playing);
+
   useEffect(() => {
     if (!active && liveMosques.length > 0) setActive(liveMosques[0].id);
   }, [liveMosques, active]);
@@ -30,6 +34,21 @@ function LivePage() {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, [playing]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume, audioRef]);
+
+  const enableNotifications = async () => {
+    if (typeof Notification === "undefined") return toast.error("Notifications not supported");
+    const p = await Notification.requestPermission();
+    if (p === "granted") {
+      toast.success("Azan alerts enabled");
+      new Notification("DeenConnect", { body: "You'll be notified when azan starts.", icon: "/icon-192.png" });
+    } else {
+      toast.error("Notifications blocked");
+    }
+  };
 
   if (loading) {
     return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-muted-foreground">Loading…</div>;
@@ -42,6 +61,9 @@ function LivePage() {
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="font-serif text-3xl">No live broadcasts right now</h1>
         <p className="mt-3 text-muted-foreground">Check back at the next adhan time, or follow a mosque to be notified.</p>
+        <button onClick={enableNotifications} className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-gold-foreground shadow-gold">
+          <Bell className="h-4 w-4" /> Enable azan alerts
+        </button>
       </div>
     );
   }
@@ -107,14 +129,22 @@ function LivePage() {
               </div>
             </div>
 
+            <audio ref={audioRef} autoPlay playsInline className="hidden" />
+
             <div className="mt-8 flex items-center justify-between border-t border-gold/15 pt-5 text-sm">
               <span className="flex items-center gap-2 text-primary-foreground/80">
                 <Users className="h-4 w-4 text-gold" />
-                {current.listeners_count.toLocaleString()} listening · {current.followers_count.toLocaleString()} followers
+                {Math.max(listeners - 1, 0).toLocaleString()} live · {current.followers_count.toLocaleString()} followers
               </span>
-              <span className="text-xs text-gold">Real WebRTC audio · coming next phase</span>
+              <button onClick={enableNotifications} className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline">
+                <Bell className="h-3.5 w-3.5" /> Azan alerts
+              </button>
+              <span className={`text-xs ${connected ? "text-emerald-400" : "text-gold/70"}`}>
+                {connected ? "● LiveKit connected" : "Connecting…"}
+              </span>
             </div>
           </div>
+
 
           <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
             <h2 className="font-serif text-2xl text-foreground">Other live mosques</h2>

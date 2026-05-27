@@ -15,6 +15,7 @@ const links = [
   { to: "/tasbih", label: "Tasbih" },
   { to: "/calendar", label: "Calendar" },
   { to: "/events", label: "Events" },
+  { to: "/announcements", label: "Announcements" },
 ] as const;
 
 export function SiteHeader() {
