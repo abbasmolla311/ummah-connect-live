@@ -1,0 +1,24 @@
+{
+  "name": "DeenConnect — Live Azan & Islamic Community",
+  "short_name": "DeenConnect",
+  "description": "Live azan broadcasting, prayer times, Quran, Hadith, Qibla, Tasbih and mosque community.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1b1e",
+  "theme_color": "#0d1b1e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
