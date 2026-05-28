@@ -289,6 +289,24 @@ function Field({ label, children, className = "" }: { label: string; children: R
   );
 }
 
+type Announcement = {
+  id: string;
+  title: string;
+  body: string;
+  category: string;
+  created_at: string;
+};
+
+type Event = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  starts_at: string;
+  location: string | null;
+  created_at: string;
+};
+
 function MosquePostPanel({ mosqueId }: { mosqueId: string }) {
   const { user } = useAuth();
   const [mode, setMode] = useState<"announcement" | "event">("announcement");
@@ -298,63 +316,230 @@ function MosquePostPanel({ mosqueId }: { mosqueId: string }) {
   const [startsAt, setStartsAt] = useState("");
   const [location, setLocation] = useState("");
   const [busy, setBusy] = useState(false);
+  const [viewMode, setViewMode] = useState<"view" | "form">("view");
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  useEffect(() => {
+    loadContent();
+  }, [mosqueId, mode]);
+
+  const loadContent = async () => {
+    setLoadingContent(true);
+    try {
+      if (mode === "announcement") {
+        const { data, error } = await supabase
+          .from("announcements")
+          .select("*")
+          .eq("mosque_id", mosqueId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setAnnouncements((data as Announcement[]) || []);
+      } else {
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("mosque_id", mosqueId)
+          .order("starts_at", { ascending: false });
+        if (error) throw error;
+        setEvents((data as Event[]) || []);
+      }
+    } catch (e) {
+      console.error("Error loading content:", e);
+    } finally {
+      setLoadingContent(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setBusy(true);
-    if (mode === "announcement") {
-      const { error } = await supabase.from("announcements").insert({
-        mosque_id: mosqueId, author_id: user.id, title, body, category,
-      });
-      if (error) { toast.error(error.message); setBusy(false); return; }
-      toast.success("Announcement posted");
-    } else {
-      if (!startsAt) { toast.error("Pick a start date/time"); setBusy(false); return; }
-      const { error } = await supabase.from("events").insert({
-        mosque_id: mosqueId, organizer_id: user.id, title, description: body, category,
-        starts_at: new Date(startsAt).toISOString(), location: location || null,
-      });
-      if (error) { toast.error(error.message); setBusy(false); return; }
-      toast.success("Event created");
+    try {
+      if (mode === "announcement") {
+        const { error } = await supabase.from("announcements").insert({
+          mosque_id: mosqueId,
+          author_id: user.id,
+          title,
+          body,
+          category,
+        });
+        if (error) throw error;
+        toast.success("Announcement posted");
+      } else {
+        if (!startsAt) {
+          toast.error("Pick a start date/time");
+          setBusy(false);
+          return;
+        }
+        const { error } = await supabase.from("events").insert({
+          mosque_id: mosqueId,
+          organizer_id: user.id,
+          title,
+          description: body,
+          category,
+          starts_at: new Date(startsAt).toISOString(),
+          location: location || null,
+        });
+        if (error) throw error;
+        toast.success("Event created");
+      }
+      setTitle("");
+      setBody("");
+      setStartsAt("");
+      setLocation("");
+      setViewMode("view");
+      await loadContent();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error posting");
+    } finally {
+      setBusy(false);
     }
-    setTitle(""); setBody(""); setStartsAt(""); setLocation("");
-    setBusy(false);
   };
 
   return (
-    <form onSubmit={submit} className="mt-5 rounded-xl border border-border bg-background/40 p-4">
+    <div className="mt-5 space-y-4">
+      {/* Mode tabs */}
       <div className="flex items-center gap-2">
         {(["announcement", "event"] as const).map((m) => (
-          <button type="button" key={m} onClick={() => setMode(m)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${mode === m ? "bg-gradient-emerald text-gold shadow-emerald" : "border border-border text-muted-foreground hover:bg-accent"}`}>
-            {m}
+          <button
+            type="button"
+            key={m}
+            onClick={() => {
+              setMode(m);
+              setViewMode("view");
+            }}
+            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+              mode === m
+                ? "bg-gradient-emerald text-gold shadow-emerald"
+                : "border border-border text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            {m}s
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setViewMode(viewMode === "form" ? "view" : "form")}
+          className="ml-auto rounded-full border border-secondary/40 px-3 py-1 text-xs font-semibold text-foreground hover:bg-accent"
+        >
+          {viewMode === "form" ? "View" : "Add New"}
+        </button>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <input required placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)}
-          className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary md:col-span-2" />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}
-          className="h-10 rounded-lg border border-border bg-background px-3 text-sm">
-          {mode === "announcement"
-            ? ["general","jumma","janaza","class","fundraising"].map((c) => <option key={c}>{c}</option>)
-            : ["general","jumma","taraweeh","quran-class","seminar","nikah"].map((c) => <option key={c}>{c}</option>)}
-        </select>
-        {mode === "event" && (
-          <>
-            <input type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
-              className="h-10 rounded-lg border border-border bg-background px-3 text-sm" />
-            <input placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)}
-              className="h-10 rounded-lg border border-border bg-background px-3 text-sm md:col-span-2" />
-          </>
-        )}
-        <textarea placeholder={mode === "announcement" ? "Announcement body" : "Event description"} value={body} onChange={(e) => setBody(e.target.value)} rows={2}
-          className="rounded-lg border border-border bg-background p-2 text-sm outline-none focus:border-secondary md:col-span-2" required={mode === "announcement"} />
-      </div>
-      <button disabled={busy} className="mt-3 rounded-full bg-gradient-gold px-4 py-1.5 text-xs font-semibold text-gold-foreground shadow-gold disabled:opacity-50">
-        {busy ? "Posting…" : `Post ${mode}`}
-      </button>
-    </form>
+
+      {/* Form */}
+      {viewMode === "form" && (
+        <form onSubmit={submit} className="rounded-xl border border-border bg-background/40 p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <input
+              required
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary md:col-span-2"
+            />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
+            >
+              {mode === "announcement"
+                ? ["general", "jumma", "janaza", "class", "fundraising"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))
+                : ["general", "jumma", "taraweeh", "quran-class", "seminar", "nikah"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+            </select>
+            {mode === "event" && (
+              <>
+                <input
+                  type="datetime-local"
+                  required
+                  value={startsAt}
+                  onChange={(e) => setStartsAt(e.target.value)}
+                  className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                />
+                <input
+                  placeholder="Location (optional)"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="h-10 rounded-lg border border-border bg-background px-3 text-sm md:col-span-2"
+                />
+              </>
+            )}
+            <textarea
+              placeholder={mode === "announcement" ? "Announcement body" : "Event description"}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={2}
+              className="rounded-lg border border-border bg-background p-2 text-sm outline-none focus:border-secondary md:col-span-2"
+              required={mode === "announcement"}
+            />
+          </div>
+          <button
+            disabled={busy}
+            className="mt-3 rounded-full bg-gradient-gold px-4 py-1.5 text-xs font-semibold text-gold-foreground shadow-gold disabled:opacity-50"
+          >
+            {busy ? "Posting…" : `Post ${mode}`}
+          </button>
+        </form>
+      )}
+
+      {/* View List */}
+      {viewMode === "view" && (
+        <div className="space-y-3 max-h-96 overflow-y-auto rounded-xl border border-border bg-background/40 p-4">
+          {loadingContent ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : mode === "announcement" && announcements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No announcements yet</p>
+          ) : mode === "event" && events.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No events scheduled</p>
+          ) : mode === "announcement" ? (
+            announcements.map((a) => (
+              <div key={a.id} className="rounded-lg border border-border/50 bg-card p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-sm text-foreground">{a.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.body}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-secondary/20 text-secondary">
+                        {a.category}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(a.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            events.map((e) => (
+              <div key={e.id} className="rounded-lg border border-border/50 bg-card p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-sm text-foreground">{e.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{e.description}</p>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">
+                        📍 {e.location || "TBA"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        🕐 {new Date(e.starts_at).toLocaleDateString()} {new Date(e.starts_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-secondary/20 text-secondary">
+                        {e.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }
