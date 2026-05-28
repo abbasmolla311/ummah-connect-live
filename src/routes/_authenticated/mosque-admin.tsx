@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Radio, Plus, MapPin, User as UserIcon, Mic, MicOff } from "lucide-react";
+import { Radio, Plus, MapPin, User as UserIcon, Mic, MicOff, BellRing, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBroadcaster } from "@/lib/use-livekit";
-
+import { useServerFn } from "@tanstack/react-start";
+import { sendAzanPush } from "@/lib/push.functions";
 export const Route = createFileRoute("/_authenticated/mosque-admin")({
   head: () => ({
     meta: [
@@ -129,7 +130,9 @@ function MosqueAdminPage() {
 }
 
 function BroadcastControls({ mosque, onChange }: { mosque: Mosque; onChange: () => void }) {
-  const { broadcasting, start, stop } = useBroadcaster();
+  const { broadcasting, start, stop, error, listeners } = useBroadcaster();
+  const sendPush = useServerFn(sendAzanPush);
+  const [pushing, setPushing] = useState(false);
 
   const toggle = async () => {
     if (broadcasting || mosque.is_live) {
@@ -149,6 +152,18 @@ function BroadcastControls({ mosque, onChange }: { mosque: Mosque; onChange: () 
     }
   };
 
+  const alertFollowers = async () => {
+    setPushing(true);
+    try {
+      const res = await sendPush({ data: { mosqueId: mosque.id } });
+      toast.success(`Azan alert sent · ${res.sent} delivered, ${res.failed} failed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Push failed");
+    } finally {
+      setPushing(false);
+    }
+  };
+
   const live = broadcasting || mosque.is_live;
   return (
     <>
@@ -161,10 +176,31 @@ function BroadcastControls({ mosque, onChange }: { mosque: Mosque; onChange: () 
         {live ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         {live ? "Stop broadcast" : "Start Azan (live mic)"}
       </button>
-      {live && (
+
+      <button
+        onClick={alertFollowers}
+        disabled={pushing}
+        className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-card px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-accent disabled:opacity-50"
+      >
+        <BellRing className="h-4 w-4 text-gold" />
+        {pushing ? "Sending…" : "Alert followers (push)"}
+      </button>
+
+      {broadcasting && (
+        <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Mic live · {listeners} listening
+        </span>
+      )}
+      {live && !broadcasting && (
         <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
           <Radio className="h-3.5 w-3.5 text-destructive pulse-live" />
-          Broadcasting · {mosque.listeners_count} listening
+          Marked live · mic not yet connected
+        </span>
+      )}
+      {error && (
+        <span className="inline-flex items-center gap-1.5 text-sm text-destructive">
+          <AlertCircle className="h-3.5 w-3.5" /> {error}
         </span>
       )}
     </>
