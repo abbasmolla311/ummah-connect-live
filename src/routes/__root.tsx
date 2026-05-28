@@ -122,6 +122,15 @@ function RootComponent() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === "PLAY_AZAN") {
+        const a = new Audio("/azan.mp3");
+        a.volume = 0.9;
+        a.play().catch(() => {});
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMsg);
+    return () => navigator.serviceWorker.removeEventListener("message", onMsg);
   }, []);
 
   return (
