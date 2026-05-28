@@ -54,21 +54,34 @@ export function useBroadcaster() {
   const roomRef = useRef<Room | null>(null);
   const trackRef = useRef<LocalAudioTrack | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [listeners, setListeners] = useState(0);
   const fetchToken = useServerFn(issueBroadcasterToken);
 
   const start = async (mosqueId: string) => {
-    const { token, wsUrl } = await fetchToken({ data: { mosqueId } });
-    const room = new Room();
-    await room.connect(wsUrl, token);
-    const track = await createLocalAudioTrack({
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-    });
-    await room.localParticipant.publishTrack(track);
-    roomRef.current = room;
-    trackRef.current = track;
-    setBroadcasting(true);
+    setError(null);
+    try {
+      const { token, wsUrl } = await fetchToken({ data: { mosqueId } });
+      const room = new Room();
+      room.on(RoomEvent.ParticipantConnected, () => setListeners(room.numParticipants - 1));
+      room.on(RoomEvent.ParticipantDisconnected, () => setListeners(Math.max(room.numParticipants - 1, 0)));
+      room.on(RoomEvent.Disconnected, () => { setBroadcasting(false); setListeners(0); });
+      await room.connect(wsUrl, token);
+      const track = await createLocalAudioTrack({
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      });
+      await room.localParticipant.publishTrack(track);
+      roomRef.current = room;
+      trackRef.current = track;
+      setBroadcasting(true);
+      setListeners(Math.max(room.numParticipants - 1, 0));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to start broadcast";
+      setError(msg);
+      throw e;
+    }
   };
 
   const stop = async () => {
@@ -77,9 +90,10 @@ export function useBroadcaster() {
     trackRef.current = null;
     roomRef.current = null;
     setBroadcasting(false);
+    setListeners(0);
   };
 
   useEffect(() => () => { void stop(); }, []);
 
-  return { broadcasting, start, stop };
+  return { broadcasting, start, stop, error, listeners };
 }
