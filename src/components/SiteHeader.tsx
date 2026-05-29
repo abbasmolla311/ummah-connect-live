@@ -14,8 +14,10 @@ const links = [
   { to: "/qibla", label: "Qibla" },
   { to: "/tasbih", label: "Tasbih" },
   { to: "/calendar", label: "Calendar" },
+  { to: "/zakat", label: "Zakat" },
   { to: "/events", label: "Events" },
   { to: "/announcements", label: "Announcements" },
+  { to: "/bookmarks", label: "Bookmarks" },
 ] as const;
 
 export function SiteHeader() {
