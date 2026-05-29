@@ -28,7 +28,7 @@ export const issueLiveKitToken = createServerFn({ method: "POST" })
     at.addGrant({
       room,
       roomJoin: true,
-      canPublish: data.role === "broadcaster",
+      canPublish: false,
       canSubscribe: true,
       canPublishData: false,
     });
