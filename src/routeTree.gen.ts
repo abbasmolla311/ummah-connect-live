@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ZakatRouteImport } from './routes/zakat'
 import { Route as TasbihRouteImport } from './routes/tasbih'
 import { Route as QuranRouteImport } from './routes/quran'
 import { Route as QiblaRouteImport } from './routes/qibla'
@@ -20,12 +21,19 @@ import { Route as HadithRouteImport } from './routes/hadith'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DuasRouteImport } from './routes/duas'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MosquesIdRouteImport } from './routes/mosques.$id'
 import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
 
+const ZakatRoute = ZakatRouteImport.update({
+  id: '/zakat',
+  path: '/zakat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasbihRoute = TasbihRouteImport.update({
   id: '/tasbih',
   path: '/tasbih',
@@ -81,6 +89,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookmarksRoute = BookmarksRouteImport.update({
+  id: '/bookmarks',
+  path: '/bookmarks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -100,6 +113,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MosquesIdRoute = MosquesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => MosquesRoute,
+} as any)
 const AuthenticatedMosqueAdminRoute =
   AuthenticatedMosqueAdminRouteImport.update({
     id: '/mosque-admin',
@@ -111,35 +129,41 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
+  '/bookmarks': typeof BookmarksRoute
   '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/events': typeof EventsRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
-  '/mosques': typeof MosquesRoute
+  '/mosques': typeof MosquesRouteWithChildren
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/tasbih': typeof TasbihRoute
+  '/zakat': typeof ZakatRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
+  '/mosques/$id': typeof MosquesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
+  '/bookmarks': typeof BookmarksRoute
   '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/events': typeof EventsRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
-  '/mosques': typeof MosquesRoute
+  '/mosques': typeof MosquesRouteWithChildren
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/tasbih': typeof TasbihRoute
+  '/zakat': typeof ZakatRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
+  '/mosques/$id': typeof MosquesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -147,18 +171,21 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/announcements': typeof AnnouncementsRoute
   '/auth': typeof AuthRoute
+  '/bookmarks': typeof BookmarksRoute
   '/calendar': typeof CalendarRoute
   '/duas': typeof DuasRoute
   '/events': typeof EventsRoute
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
-  '/mosques': typeof MosquesRoute
+  '/mosques': typeof MosquesRouteWithChildren
   '/prayer-times': typeof PrayerTimesRoute
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
   '/tasbih': typeof TasbihRoute
+  '/zakat': typeof ZakatRoute
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
+  '/mosques/$id': typeof MosquesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -166,6 +193,7 @@ export interface FileRouteTypes {
     | '/'
     | '/announcements'
     | '/auth'
+    | '/bookmarks'
     | '/calendar'
     | '/duas'
     | '/events'
@@ -177,12 +205,15 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/quran'
     | '/tasbih'
+    | '/zakat'
     | '/mosque-admin'
+    | '/mosques/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/announcements'
     | '/auth'
+    | '/bookmarks'
     | '/calendar'
     | '/duas'
     | '/events'
@@ -194,13 +225,16 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/quran'
     | '/tasbih'
+    | '/zakat'
     | '/mosque-admin'
+    | '/mosques/$id'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/announcements'
     | '/auth'
+    | '/bookmarks'
     | '/calendar'
     | '/duas'
     | '/events'
@@ -212,7 +246,9 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/quran'
     | '/tasbih'
+    | '/zakat'
     | '/_authenticated/mosque-admin'
+    | '/mosques/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -220,21 +256,30 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AnnouncementsRoute: typeof AnnouncementsRoute
   AuthRoute: typeof AuthRoute
+  BookmarksRoute: typeof BookmarksRoute
   CalendarRoute: typeof CalendarRoute
   DuasRoute: typeof DuasRoute
   EventsRoute: typeof EventsRoute
   HadithRoute: typeof HadithRoute
   LiveRoute: typeof LiveRoute
-  MosquesRoute: typeof MosquesRoute
+  MosquesRoute: typeof MosquesRouteWithChildren
   PrayerTimesRoute: typeof PrayerTimesRoute
   ProfileRoute: typeof ProfileRoute
   QiblaRoute: typeof QiblaRoute
   QuranRoute: typeof QuranRoute
   TasbihRoute: typeof TasbihRoute
+  ZakatRoute: typeof ZakatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/zakat': {
+      id: '/zakat'
+      path: '/zakat'
+      fullPath: '/zakat'
+      preLoaderRoute: typeof ZakatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasbih': {
       id: '/tasbih'
       path: '/tasbih'
@@ -312,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bookmarks': {
+      id: '/bookmarks'
+      path: '/bookmarks'
+      fullPath: '/bookmarks'
+      preLoaderRoute: typeof BookmarksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -340,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mosques/$id': {
+      id: '/mosques/$id'
+      path: '/$id'
+      fullPath: '/mosques/$id'
+      preLoaderRoute: typeof MosquesIdRouteImport
+      parentRoute: typeof MosquesRoute
+    }
     '/_authenticated/mosque-admin': {
       id: '/_authenticated/mosque-admin'
       path: '/mosque-admin'
@@ -362,22 +421,35 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface MosquesRouteChildren {
+  MosquesIdRoute: typeof MosquesIdRoute
+}
+
+const MosquesRouteChildren: MosquesRouteChildren = {
+  MosquesIdRoute: MosquesIdRoute,
+}
+
+const MosquesRouteWithChildren =
+  MosquesRoute._addFileChildren(MosquesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AnnouncementsRoute: AnnouncementsRoute,
   AuthRoute: AuthRoute,
+  BookmarksRoute: BookmarksRoute,
   CalendarRoute: CalendarRoute,
   DuasRoute: DuasRoute,
   EventsRoute: EventsRoute,
   HadithRoute: HadithRoute,
   LiveRoute: LiveRoute,
-  MosquesRoute: MosquesRoute,
+  MosquesRoute: MosquesRouteWithChildren,
   PrayerTimesRoute: PrayerTimesRoute,
   ProfileRoute: ProfileRoute,
   QiblaRoute: QiblaRoute,
   QuranRoute: QuranRoute,
   TasbihRoute: TasbihRoute,
+  ZakatRoute: ZakatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -64,21 +64,23 @@ function MosquesPage() {
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((m) => (
             <article key={m.id} className="group rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-emerald">
-              <div className="flex items-start justify-between">
-                <div>
-                  {m.arabic_name && <div className="font-arabic text-gold">{m.arabic_name}</div>}
-                  <h2 className="mt-1 font-serif text-2xl text-foreground">{m.name}</h2>
+              <Link to="/mosques/$id" params={{ id: m.id }} className="block">
+                <div className="flex items-start justify-between">
+                  <div>
+                    {m.arabic_name && <div className="font-arabic text-gold">{m.arabic_name}</div>}
+                    <h2 className="mt-1 font-serif text-2xl text-foreground group-hover:text-secondary">{m.name}</h2>
+                  </div>
+                  {m.is_live && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                      <span className="h-1.5 w-1.5 rounded-full bg-destructive pulse-live" /> LIVE
+                    </span>
+                  )}
                 </div>
-                {m.is_live && (
-                  <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
-                    <span className="h-1.5 w-1.5 rounded-full bg-destructive pulse-live" /> LIVE
-                  </span>
-                )}
-              </div>
-              {m.imam_name && <p className="mt-2 text-sm text-muted-foreground">Imam: {m.imam_name}</p>}
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" /> {m.village ? `${m.village}, ` : ""}{m.city}, {m.country}
-              </p>
+                {m.imam_name && <p className="mt-2 text-sm text-muted-foreground">Imam: {m.imam_name}</p>}
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" /> {m.village ? `${m.village}, ` : ""}{m.city}, {m.country}
+                </p>
+              </Link>
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users className="h-3.5 w-3.5" /> {m.followers_count.toLocaleString()} followers
