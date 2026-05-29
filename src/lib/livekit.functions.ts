@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const roomSchema = z.object({
   mosqueId: z.string().uuid(),
-  role: z.enum(["broadcaster", "listener"]),
+  role: z.literal("listener"),
 });
 
 /**
@@ -28,7 +28,7 @@ export const issueLiveKitToken = createServerFn({ method: "POST" })
     at.addGrant({
       room,
       roomJoin: true,
-      canPublish: data.role === "broadcaster",
+      canPublish: false,
       canSubscribe: true,
       canPublishData: false,
     });
