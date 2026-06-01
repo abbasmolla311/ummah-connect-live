@@ -1,0 +1,1 @@
+DELETE FROM public.mosques WHERE created_at = '2026-05-20 10:31:46.224177+00' AND owner_id = 'a91af882-6366-4ee4-a832-ba46d8db044b';
