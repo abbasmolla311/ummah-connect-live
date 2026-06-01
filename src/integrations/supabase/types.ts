@@ -271,33 +271,39 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          azan_sound: string
           city: string | null
           country: string | null
           created_at: string
           display_name: string | null
           id: string
+          prayer_mosques: Json
           preferred_mosque_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          azan_sound?: string
           city?: string | null
           country?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          prayer_mosques?: Json
           preferred_mosque_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          azan_sound?: string
           city?: string | null
           country?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          prayer_mosques?: Json
           preferred_mosque_id?: string | null
           updated_at?: string
           user_id?: string
