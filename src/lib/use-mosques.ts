@@ -16,6 +16,8 @@ export type DbMosque = {
   listeners_count: number;
   followers_count: number;
   cover_image_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export function useMosques() {
