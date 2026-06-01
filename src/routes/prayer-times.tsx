@@ -133,7 +133,7 @@ function PrayerTimesPage() {
     );
   };
 
-  const persist = async (patch: Record<string, unknown>) => {
+  const persist = async (patch: { preferred_mosque_id?: string | null; prayer_mosques?: Partial<Record<PrayerKey, string>>; azan_sound?: AzanId }) => {
     if (!user) { toast.info("Sign in to save your preferences"); return; }
     const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
     if (error) toast.error("Could not save preference");
