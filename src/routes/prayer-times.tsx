@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Sunrise, Sun, Sunset, Moon, Cloud, Bell, Search, MapPin, Volume2, Check, Loader2, Music, Play, Square } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Sunrise, Sun, Sunset, Moon, Cloud, Bell, BellOff, Search, MapPin, Volume2,
+  Check, Loader2, Music, Play, Square, Upload, Trash2, Repeat, X, Maximize2,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Coordinates, CalculationMethod, PrayerTimes, SunnahTimes } from "adhan";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +14,7 @@ export const Route = createFileRoute("/prayer-times")({
   head: () => ({
     meta: [
       { title: "Prayer Times — DeenConnect" },
-      { name: "description", content: "Live prayer times per mosque, with a custom azan tone for each alert." },
+      { name: "description", content: "Live prayer times per mosque, with custom azan tones, per-prayer alerts and a loop preview." },
     ],
   }),
   component: PrayerTimesPage,
@@ -31,6 +34,7 @@ const METHODS = [
   { key: "Turkey", label: "Turkey" },
   { key: "Tehran", label: "Tehran" },
 ] as const;
+type MethodKey = typeof METHODS[number]["key"];
 
 const PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
 type PrayerKey = (typeof PRAYERS)[number];
@@ -43,19 +47,28 @@ const ARABIC: Record<DisplayKey, string> = {
   fajr: "الفجر", sunrise: "الشروق", dhuhr: "الظهر", asr: "العصر", maghrib: "المغرب", isha: "العشاء",
 };
 
-const AZAN_TONES = [
+const BUILTIN_TONES = [
   { id: "classic", label: "Classic Azan", url: "/azan.mp3" },
   { id: "deep", label: "Deep Azan (Makkah-style)", url: "/azan-deep.mp3" },
   { id: "bright", label: "Bright Azan (Madinah-style)", url: "/azan-bright.mp3" },
 ] as const;
-type AzanId = (typeof AZAN_TONES)[number]["id"];
+type ToneId = string; // "classic" | "deep" | "bright" | "custom"
 
 type Coord = { lat: number; lng: number; label: string };
+type PrayerAlerts = Record<PrayerKey, boolean>;
+const DEFAULT_ALERTS: PrayerAlerts = { fajr: true, dhuhr: true, asr: true, maghrib: true, isha: true };
 
 function fmt(d: Date) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
-
+function countdown(target: Date, now: Date) {
+  let ms = target.getTime() - now.getTime();
+  if (ms < 0) ms = 0;
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  const s = Math.floor((ms % 60_000) / 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 function distanceKm(a: Coord, b: { latitude: number | null; longitude: number | null }) {
   if (b.latitude == null || b.longitude == null) return Infinity;
   const toRad = (x: number) => (x * Math.PI) / 180;
@@ -65,7 +78,6 @@ function distanceKm(a: Coord, b: { latitude: number | null; longitude: number | 
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.latitude)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-
 function coordOf(m: DbMosque | null | undefined, fallback: Coord | null): Coord | null {
   if (m?.latitude != null && m?.longitude != null) {
     return { lat: m.latitude, lng: m.longitude, label: `${m.name} · ${m.city}` };
@@ -76,26 +88,53 @@ function coordOf(m: DbMosque | null | undefined, fallback: Coord | null): Coord 
 function PrayerTimesPage() {
   const { user } = useAuth();
   const { mosques } = useMosques();
+
+  // Preferences
   const [defaultCoord, setDefaultCoord] = useState<Coord | null>(null);
-  const [method, setMethod] = useState<typeof METHODS[number]["key"]>("NorthAmerica");
+  const [method, setMethod] = useState<MethodKey>("NorthAmerica");
   const [preferredId, setPreferredId] = useState<string | null>(null);
   const [perPrayer, setPerPrayer] = useState<Partial<Record<PrayerKey, string>>>({});
-  const [azanId, setAzanId] = useState<AzanId>("classic");
+  const [toneId, setToneId] = useState<ToneId>("classic");
+  const [customUrl, setCustomUrl] = useState<string | null>(null);
+  const [volume, setVolume] = useState(90);
+  const [alerts, setAlerts] = useState<PrayerAlerts>(DEFAULT_ALERTS);
+
+  // UI state
   const [pickerFor, setPickerFor] = useState<"default" | PrayerKey | null>(null);
   const [query, setQuery] = useState("");
   const [locating, setLocating] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
+  const [uploading, setUploading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playingTone, setPlayingTone] = useState<AzanId | null>(null);
+  const [playingTone, setPlayingTone] = useState<ToneId | null>(null);
+  const firedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Tones (built-in + custom)
+  const tones = useMemo(() => {
+    const list: { id: ToneId; label: string; url: string; removable?: boolean }[] = [...BUILTIN_TONES];
+    if (customUrl) list.push({ id: "custom", label: "My uploaded azan", url: customUrl, removable: true });
+    return list;
+  }, [customUrl]);
+  const currentTone = useMemo(
+    () => tones.find((t) => t.id === toneId) ?? tones[0],
+    [tones, toneId]
+  );
 
   // Load profile prefs
   useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("preferred_mosque_id, prayer_mosques, azan_sound")
+      .select("preferred_mosque_id, prayer_mosques, azan_sound, custom_azan_url, azan_volume, prayer_alerts")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -104,8 +143,11 @@ function PrayerTimesPage() {
         if (data.prayer_mosques && typeof data.prayer_mosques === "object") {
           setPerPrayer(data.prayer_mosques as Partial<Record<PrayerKey, string>>);
         }
-        if (data.azan_sound && AZAN_TONES.some((t) => t.id === data.azan_sound)) {
-          setAzanId(data.azan_sound as AzanId);
+        if (data.azan_sound) setToneId(data.azan_sound);
+        if (data.custom_azan_url) setCustomUrl(data.custom_azan_url);
+        if (typeof data.azan_volume === "number") setVolume(data.azan_volume);
+        if (data.prayer_alerts && typeof data.prayer_alerts === "object") {
+          setAlerts({ ...DEFAULT_ALERTS, ...(data.prayer_alerts as Partial<PrayerAlerts>) });
         }
       });
   }, [user]);
@@ -119,7 +161,7 @@ function PrayerTimesPage() {
     [preferredMosque, defaultCoord]
   );
 
-  const useMyLocation = () => {
+  const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return toast.error("Geolocation not supported");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
@@ -131,9 +173,17 @@ function PrayerTimesPage() {
       (err) => { setLocating(false); toast.error(err.message || "Could not get location"); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
+  }, []);
 
-  const persist = async (patch: { preferred_mosque_id?: string | null; prayer_mosques?: Partial<Record<PrayerKey, string>>; azan_sound?: AzanId }) => {
+  type ProfilePatch = {
+    preferred_mosque_id?: string | null;
+    prayer_mosques?: Partial<Record<PrayerKey, string>>;
+    azan_sound?: ToneId;
+    custom_azan_url?: string | null;
+    azan_volume?: number;
+    prayer_alerts?: PrayerAlerts;
+  };
+  const persist = async (patch: ProfilePatch) => {
     if (!user) { toast.info("Sign in to save your preferences"); return; }
     const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
     if (error) toast.error("Could not save preference");
@@ -153,28 +203,26 @@ function PrayerTimesPage() {
     setPickerFor(null);
     setQuery("");
   };
-
   const clearPerPrayer = async (p: PrayerKey) => {
     const next = { ...perPrayer };
     delete next[p];
     setPerPrayer(next);
     await persist({ prayer_mosques: next });
   };
-
   const clearDefault = async () => {
     setPreferredId(null);
     await persist({ preferred_mosque_id: null });
   };
 
   // Compute prayer times per prayer
-  const computeForCoord = (c: Coord | null) => {
+  const computeForCoord = useCallback((c: Coord | null) => {
     if (!c) return null;
     const params = (CalculationMethod[method] as () => ReturnType<typeof CalculationMethod.NorthAmerica>)();
     const pt = new PrayerTimes(new Coordinates(c.lat, c.lng), new Date(), params);
     return { fajr: pt.fajr, sunrise: pt.sunrise, dhuhr: pt.dhuhr, asr: pt.asr, maghrib: pt.maghrib, isha: pt.isha, _sunnah: new SunnahTimes(pt) };
-  };
+  }, [method]);
 
-  const defaultTimes = useMemo(() => computeForCoord(defaultMosqueCoord), [defaultMosqueCoord, method]);
+  const defaultTimes = useMemo(() => computeForCoord(defaultMosqueCoord), [defaultMosqueCoord, computeForCoord]);
 
   const perPrayerTimes = useMemo(() => {
     const out: Partial<Record<PrayerKey, { time: Date; coord: Coord | null; mosque: DbMosque | null }>> = {};
@@ -185,11 +233,10 @@ function PrayerTimesPage() {
       if (times) out[p] = { time: times[p], coord: c, mosque };
     }
     return out;
-  }, [perPrayer, mosques, defaultMosqueCoord, method]);
+  }, [perPrayer, mosques, defaultMosqueCoord, computeForCoord]);
 
   const next = useMemo(() => {
     if (!defaultTimes) return null;
-    const now = new Date();
     const all: { name: DisplayKey; at: Date }[] = [
       { name: "fajr", at: perPrayerTimes.fajr?.time ?? defaultTimes.fajr },
       { name: "sunrise", at: defaultTimes.sunrise },
@@ -199,9 +246,9 @@ function PrayerTimesPage() {
       { name: "isha", at: perPrayerTimes.isha?.time ?? defaultTimes.isha },
     ];
     return all.find((e) => e.at > now) ?? { name: "fajr" as DisplayKey, at: defaultTimes._sunnah.middleOfTheNight };
-  }, [defaultTimes, perPrayerTimes]);
+  }, [defaultTimes, perPrayerTimes, now]);
 
-  // Nearby + search
+  // Nearby + search — picker always shows results
   const nearby = useMemo(() => {
     if (!defaultMosqueCoord) return [];
     return [...mosques]
@@ -210,42 +257,139 @@ function PrayerTimesPage() {
       .sort((a, b) => a.d - b.d)
       .slice(0, 6);
   }, [defaultMosqueCoord, mosques]);
-
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return mosques
-      .filter((m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.city.toLowerCase().includes(q) ||
-        (m.village ?? "").toLowerCase().includes(q)
-      )
-      .slice(0, 8);
+    return mosques.filter((m) =>
+      m.name.toLowerCase().includes(q) ||
+      m.city.toLowerCase().includes(q) ||
+      (m.village ?? "").toLowerCase().includes(q) ||
+      (m.country ?? "").toLowerCase().includes(q)
+    ).slice(0, 20);
   }, [query, mosques]);
 
-  // Azan playback — built synchronously inside click handler
-  const playTone = async (tone: AzanId) => {
+  // Foreground prayer alarm scheduler — fires once per prayer per day while app is open.
+  useEffect(() => {
+    if (!defaultTimes) return;
+    const today = now.toDateString();
+    for (const p of PRAYERS) {
+      if (!alerts[p]) continue;
+      const t = perPrayerTimes[p]?.time ?? defaultTimes[p];
+      const key = `${today}|${p}|${t.getTime()}`;
+      if (firedRef.current.has(key)) continue;
+      const diff = t.getTime() - now.getTime();
+      if (diff <= 0 && diff > -60_000) {
+        firedRef.current.add(key);
+        triggerPrayerAlert(p, t);
+      }
+    }
+  }, [now, defaultTimes, perPrayerTimes, alerts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const triggerPrayerAlert = (p: PrayerKey, t: Date) => {
+    const label = p.charAt(0).toUpperCase() + p.slice(1);
+    // Try Notification + Service Worker so it shows even if tab is in background
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      const title = `🕌 ${label} prayer time`;
+      const body = `It is ${fmt(t)} — time for ${label}`;
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then((reg) =>
+          reg.showNotification(title, { body, tag: `prayer-${p}`, requireInteraction: true })
+        ).catch(() => new Notification(title, { body }));
+      } else {
+        try { new Notification(title, { body }); } catch { /* ignore */ }
+      }
+    }
+    playTone(toneId, { loop: false });
+    toast.success(`${label} prayer time`);
+  };
+
+  // Azan playback
+  const ensureAudio = () => {
     if (!audioRef.current) audioRef.current = new Audio();
-    const url = AZAN_TONES.find((t) => t.id === tone)?.url ?? "/azan.mp3";
+    return audioRef.current;
+  };
+  const playTone = async (id: ToneId, opts?: { loop?: boolean }) => {
+    const a = ensureAudio();
+    const url = tones.find((t) => t.id === id)?.url ?? "/azan.mp3";
     try {
-      audioRef.current.src = url;
-      audioRef.current.currentTime = 0;
-      audioRef.current.volume = 0.9;
-      await audioRef.current.play();
-      setPlayingTone(tone);
-      audioRef.current.onended = () => setPlayingTone(null);
+      a.src = url;
+      a.loop = !!opts?.loop;
+      a.currentTime = 0;
+      a.volume = Math.min(1, Math.max(0, volume / 100));
+      await a.play();
+      setPlayingTone(id);
+      a.onended = () => { if (!a.loop) setPlayingTone(null); };
     } catch {
       toast.error("Tap again to allow audio");
     }
   };
   const stopTone = () => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current.loop = false; }
     setPlayingTone(null);
   };
-  const chooseTone = async (tone: AzanId) => {
-    setAzanId(tone);
-    await persist({ azan_sound: tone });
-    toast.success(`Saved · ${AZAN_TONES.find((t) => t.id === tone)?.label}`);
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = Math.min(1, Math.max(0, volume / 100));
+  }, [volume]);
+
+  const chooseTone = async (id: ToneId) => {
+    setToneId(id);
+    await persist({ azan_sound: id });
+    toast.success(`Saved · ${tones.find((t) => t.id === id)?.label}`);
+  };
+
+  const toggleAlert = async (p: PrayerKey) => {
+    const next = { ...alerts, [p]: !alerts[p] };
+    setAlerts(next);
+    await persist({ prayer_alerts: next });
+    if (next[p] && typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  };
+
+  const onVolumeCommit = async (v: number) => {
+    await persist({ azan_volume: v });
+  };
+
+  // Custom azan upload
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const handleUpload = async (file: File) => {
+    if (!user) return toast.info("Sign in to upload your azan");
+    if (!file.type.startsWith("audio/")) return toast.error("Please choose an audio file");
+    if (file.size > 8 * 1024 * 1024) return toast.error("Max file size is 8 MB");
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
+      const path = `${user.id}/azan.${ext}`;
+      const { error: upErr } = await supabase.storage.from("azan-uploads").upload(path, file, {
+        upsert: true, contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("azan-uploads").getPublicUrl(path);
+      const url = `${data.publicUrl}?t=${Date.now()}`;
+      setCustomUrl(url);
+      await persist({ custom_azan_url: url });
+      toast.success("Custom azan uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const removeCustom = async () => {
+    if (!user || !customUrl) return;
+    try {
+      // best effort delete; storage keys begin with userId/
+      const path = customUrl.split("/azan-uploads/")[1]?.split("?")[0];
+      if (path) await supabase.storage.from("azan-uploads").remove([path]);
+    } catch { /* ignore */ }
+    setCustomUrl(null);
+    if (toneId === "custom") {
+      setToneId("classic");
+      await persist({ azan_sound: "classic", custom_azan_url: null });
+    } else {
+      await persist({ custom_azan_url: null });
+    }
+    toast.success("Custom azan removed");
   };
 
   const greg = mounted
@@ -253,14 +397,20 @@ function PrayerTimesPage() {
     : "";
   const hijri = mounted
     ? new Intl.DateTimeFormat("en-TN-u-ca-islamic", { day: "numeric", month: "long", year: "numeric" })
-        .format(new Date())
-        .replace(" AH", "")
+        .format(new Date()).replace(" AH", "")
     : "";
 
   const mosqueLabel = (id?: string | null) => {
     if (!id) return null;
     const m = mosques.find((x) => x.id === id);
     return m ? m.name : null;
+  };
+  const currentMethodLabel = METHODS.find((m) => m.key === method)?.label ?? method;
+
+  // Open picker — also try to auto-locate so nearby populates immediately
+  const openPicker = (target: "default" | PrayerKey) => {
+    setPickerFor(target); setQuery("");
+    if (!defaultMosqueCoord && navigator.geolocation && !locating) useMyLocation();
   };
 
   return (
@@ -285,7 +435,7 @@ function PrayerTimesPage() {
             {locating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
             Use my location
           </button>
-          <button onClick={() => { setPickerFor("default"); setQuery(""); }} className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors">
+          <button onClick={() => openPicker("default")} className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors">
             <Search className="h-3.5 w-3.5" /> {preferredMosque ? "Change default" : "Set default mosque"}
           </button>
           {preferredMosque && (
@@ -296,13 +446,13 @@ function PrayerTimesPage() {
         {next && defaultTimes && (
           <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-wider text-gold">Next prayer</div>
+              <div className="text-xs uppercase tracking-wider text-gold">Next prayer · in {countdown(next.at, now)}</div>
               <div className="mt-1 font-serif text-3xl capitalize">
                 {next.name} · <span className="text-gold">{fmt(next.at)}</span>
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => playTone(azanId)} className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-gold-foreground hover:opacity-90">
+              <button onClick={() => playTone(toneId)} className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-gold-foreground hover:opacity-90">
                 <Volume2 className="h-4 w-4" /> Play azan
               </button>
               <button onClick={stopTone} className="rounded-full border border-gold/40 px-4 py-3 text-sm font-semibold text-gold">Stop</button>
@@ -325,7 +475,7 @@ function PrayerTimesPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by mosque name, city or village…"
+              placeholder="Search by mosque name, city, village or country…"
               className="h-11 w-full rounded-full border border-border bg-background pl-10 pr-4 text-sm outline-none focus:border-secondary"
             />
           </div>
@@ -362,13 +512,30 @@ function PrayerTimesPage() {
                 ))}
               </ul>
             </div>
+          ) : mosques.length > 0 ? (
+            <div className="mt-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">All mosques</div>
+              <ul className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border">
+                {mosques.slice(0, 12).map((m) => (
+                  <li key={m.id}>
+                    <button onClick={() => selectMosque(m.id)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent/40">
+                      <div>
+                        <div className="font-medium">{m.name}</div>
+                        <div className="text-xs text-muted-foreground">{m.village ? `${m.village}, ` : ""}{m.city}, {m.country}</div>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">Tip: share your location to sort by distance.</p>
+            </div>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">Enable location or type a name to find mosques.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No mosques have been added yet. Search by name to find one.</p>
           )}
         </div>
       )}
 
-      {/* Prayer grid */}
+      {/* Prayer grid — with details, countdown and alert toggle */}
       {defaultTimes ? (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Sunrise (informational) */}
@@ -388,7 +555,8 @@ function PrayerTimesPage() {
             const t = entry?.time ?? defaultTimes[p];
             const Icon = ICONS[p];
             const isNext = next?.name === p;
-            const selectedMosqueName = mosqueLabel(perPrayer[p]);
+            const selectedMosqueName = mosqueLabel(perPrayer[p]) ?? defaultMosqueCoord?.label ?? "—";
+            const enabled = alerts[p];
             return (
               <div key={p} className={`rounded-2xl border p-6 transition-all ${isNext ? "border-gold bg-gradient-emerald text-primary-foreground shadow-emerald" : "border-border bg-card"}`}>
                 <div className="flex items-center justify-between">
@@ -399,24 +567,37 @@ function PrayerTimesPage() {
                 </div>
                 <div className={`mt-5 text-xs uppercase tracking-wider ${isNext ? "text-gold" : "text-muted-foreground"}`}>{p}</div>
                 <div className="mt-1 font-serif text-4xl">{fmt(t)}</div>
+                <div className={`mt-1 text-xs ${isNext ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  in {countdown(t, now)} · {currentMethodLabel}
+                </div>
 
-                <div className={`mt-4 flex items-center justify-between gap-2 border-t pt-3 text-xs ${isNext ? "border-gold/30" : "border-border"}`}>
-                  <span className={`truncate ${isNext ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    {selectedMosqueName ? `Mosque: ${selectedMosqueName}` : "Using default mosque"}
-                  </span>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => { setPickerFor(p); setQuery(""); }}
-                      className={`rounded-full border px-2.5 py-1 font-semibold transition-colors ${isNext ? "border-gold/50 text-gold hover:bg-gold hover:text-gold-foreground" : "border-border text-foreground hover:bg-accent"}`}
-                    >
-                      {selectedMosqueName ? "Change" : "Pick"}
-                    </button>
-                    {selectedMosqueName && (
-                      <button onClick={() => clearPerPrayer(p)} className={`underline ${isNext ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                        Reset
+                <div className={`mt-4 space-y-2 border-t pt-3 text-xs ${isNext ? "border-gold/30" : "border-border"}`}>
+                  <div className={`flex items-center justify-between gap-2 ${isNext ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                    <span className="truncate">📍 {selectedMosqueName}</span>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => openPicker(p)}
+                        className={`rounded-full border px-2.5 py-1 font-semibold transition-colors ${isNext ? "border-gold/50 text-gold hover:bg-gold hover:text-gold-foreground" : "border-border text-foreground hover:bg-accent"}`}
+                      >
+                        {mosqueLabel(perPrayer[p]) ? "Change" : "Pick"}
                       </button>
-                    )}
+                      {mosqueLabel(perPrayer[p]) && (
+                        <button onClick={() => clearPerPrayer(p)} className={`underline ${isNext ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                          Reset
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => toggleAlert(p)}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-3 py-1.5 font-semibold transition-colors ${
+                      enabled
+                        ? (isNext ? "bg-gold text-gold-foreground" : "bg-gradient-emerald text-primary-foreground")
+                        : (isNext ? "border border-gold/50 text-gold" : "border border-border text-muted-foreground hover:bg-accent")
+                    }`}
+                  >
+                    {enabled ? <><Bell className="h-3 w-3" /> Alert on</> : <><BellOff className="h-3 w-3" /> Alert off</>}
+                  </button>
                 </div>
               </div>
             );
@@ -437,17 +618,38 @@ function PrayerTimesPage() {
               <Music className="h-5 w-5 text-secondary" /> Azan tone
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Pick the azan sound that plays for your prayer alerts. Test before saving.
+              Pick the azan sound, upload your own, and loop-test before saving.
             </p>
           </div>
-          <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-primary">
-            Current · {AZAN_TONES.find((t) => t.id === azanId)?.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-primary">
+              Current · {currentTone?.label}
+            </span>
+            <button
+              onClick={() => setPreviewOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+            >
+              <Maximize2 className="h-3.5 w-3.5" /> Full preview
+            </button>
+          </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {AZAN_TONES.map((tone) => {
-            const isActive = azanId === tone.id;
+        {/* Volume */}
+        <div className="mt-5 flex items-center gap-3">
+          <Volume2 className="h-4 w-4 text-muted-foreground" />
+          <input
+            type="range" min={0} max={100} value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            onMouseUp={(e) => onVolumeCommit(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={(e) => onVolumeCommit(Number((e.target as HTMLInputElement).value))}
+            className="h-2 w-full max-w-sm cursor-pointer accent-secondary"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">{volume}%</span>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {tones.map((tone) => {
+            const isActive = toneId === tone.id;
             const isPlaying = playingTone === tone.id;
             return (
               <div key={tone.id} className={`rounded-xl border p-4 transition-all ${isActive ? "border-secondary bg-accent/30" : "border-border bg-background"}`}>
@@ -470,9 +672,37 @@ function PrayerTimesPage() {
                     {isActive ? "Selected" : "Use this"}
                   </button>
                 </div>
+                {tone.removable && (
+                  <button onClick={removeCustom} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 text-xs text-destructive hover:underline">
+                    <Trash2 className="h-3 w-3" /> Remove upload
+                  </button>
+                )}
               </div>
             );
           })}
+
+          {/* Upload card */}
+          {!customUrl && (
+            <div className="rounded-xl border border-dashed border-border bg-background p-4">
+              <div className="font-medium">Upload your own</div>
+              <p className="mt-1 text-xs text-muted-foreground">MP3, OGG or WAV. Max 8 MB.</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.currentTarget.value = ""; }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || !user}
+                className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-gradient-emerald px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {uploading ? <><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</> : <><Upload className="h-3 w-3" /> Choose audio file</>}
+              </button>
+              {!user && <p className="mt-2 text-center text-xs text-muted-foreground">Sign in to upload</p>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -485,7 +715,7 @@ function PrayerTimesPage() {
           </div>
           <select
             value={method}
-            onChange={(e) => setMethod(e.target.value as typeof method)}
+            onChange={(e) => setMethod(e.target.value as MethodKey)}
             className="h-11 rounded-full border border-border bg-background px-4 text-sm outline-none focus:border-secondary"
           >
             {METHODS.map((m) => (
@@ -493,6 +723,85 @@ function PrayerTimesPage() {
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Full-screen preview modal */}
+      {previewOpen && (
+        <PreviewModal
+          tone={currentTone}
+          volume={volume}
+          setVolume={setVolume}
+          onVolumeCommit={onVolumeCommit}
+          onClose={() => { stopTone(); setPreviewOpen(false); }}
+          playTone={playTone}
+          stopTone={stopTone}
+          playingTone={playingTone}
+        />
+      )}
+    </div>
+  );
+}
+
+function PreviewModal({
+  tone, volume, setVolume, onVolumeCommit, onClose, playTone, stopTone, playingTone,
+}: {
+  tone: { id: ToneId; label: string; url: string } | undefined;
+  volume: number;
+  setVolume: (v: number) => void;
+  onVolumeCommit: (v: number) => void;
+  onClose: () => void;
+  playTone: (id: ToneId, opts?: { loop?: boolean }) => void;
+  stopTone: () => void;
+  playingTone: ToneId | null;
+}) {
+  const [loop, setLoop] = useState(true);
+  const isPlaying = !!tone && playingTone === tone.id;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!tone) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm">
+      <div className="relative w-full max-w-xl rounded-3xl bg-gradient-hero p-8 text-primary-foreground shadow-emerald islamic-pattern md:p-12">
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-full bg-primary/50 p-2 text-gold hover:bg-primary/70">
+          <X className="h-4 w-4" />
+        </button>
+        <div className="text-xs uppercase tracking-[0.25em] text-gold">Azan preview</div>
+        <h2 className="mt-2 font-serif text-3xl md:text-4xl">{tone.label}</h2>
+        <p className="mt-1 text-sm text-primary-foreground/70">Loop-test before saving so you know exactly what you'll hear at prayer time.</p>
+
+        <div className="mt-8 grid place-items-center">
+          <button
+            onClick={() => (isPlaying ? stopTone() : playTone(tone.id, { loop }))}
+            className="grid h-32 w-32 place-items-center rounded-full bg-gold text-gold-foreground shadow-emerald hover:opacity-90"
+          >
+            {isPlaying ? <Square className="h-10 w-10" /> : <Play className="h-10 w-10" />}
+          </button>
+        </div>
+
+        <div className="mt-8 flex items-center gap-3">
+          <Volume2 className="h-4 w-4 text-gold" />
+          <input
+            type="range" min={0} max={100} value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            onMouseUp={(e) => onVolumeCommit(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={(e) => onVolumeCommit(Number((e.target as HTMLInputElement).value))}
+            className="h-2 w-full cursor-pointer accent-gold"
+          />
+          <span className="w-10 text-right text-xs text-gold">{volume}%</span>
+        </div>
+
+        <button
+          onClick={() => setLoop((v) => !v)}
+          className={`mt-4 inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-xs font-semibold ${loop ? "bg-gold text-gold-foreground" : "text-gold"}`}
+        >
+          <Repeat className="h-3.5 w-3.5" /> {loop ? "Looping on" : "Looping off"}
+        </button>
       </div>
     </div>
   );
