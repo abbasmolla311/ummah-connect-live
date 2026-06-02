@@ -272,11 +272,14 @@ export type Database = {
         Row: {
           avatar_url: string | null
           azan_sound: string
+          azan_volume: number
           city: string | null
           country: string | null
           created_at: string
+          custom_azan_url: string | null
           display_name: string | null
           id: string
+          prayer_alerts: Json
           prayer_mosques: Json
           preferred_mosque_id: string | null
           updated_at: string
@@ -285,11 +288,14 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           azan_sound?: string
+          azan_volume?: number
           city?: string | null
           country?: string | null
           created_at?: string
+          custom_azan_url?: string | null
           display_name?: string | null
           id?: string
+          prayer_alerts?: Json
           prayer_mosques?: Json
           preferred_mosque_id?: string | null
           updated_at?: string
@@ -298,11 +304,14 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           azan_sound?: string
+          azan_volume?: number
           city?: string | null
           country?: string | null
           created_at?: string
+          custom_azan_url?: string | null
           display_name?: string | null
           id?: string
+          prayer_alerts?: Json
           prayer_mosques?: Json
           preferred_mosque_id?: string | null
           updated_at?: string
