@@ -504,6 +504,15 @@ function PrayerTimesPage() {
           {preferredMosque && (
             <button onClick={clearDefault} className="text-xs text-primary-foreground/70 underline">Clear default</button>
           )}
+          <button
+            onClick={enableBackground}
+            disabled={pushBusy || pushStatus === "subscribed" || pushStatus === "unsupported"}
+            className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors disabled:opacity-60"
+            title={pushStatus === "unsupported" ? "Push not supported on this device" : "Get alerts even when the app is closed"}
+          >
+            {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
+            {pushStatus === "subscribed" ? "Background alerts on" : "Enable background alerts"}
+          </button>
         </div>
 
         {next && defaultTimes && (
