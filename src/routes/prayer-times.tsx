@@ -1,13 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sunrise, Sun, Sunset, Moon, Cloud, Bell, BellOff, Search, MapPin, Volume2,
   Check, Loader2, Music, Play, Square, Upload, Trash2, Repeat, X, Maximize2,
+  Info, BellRing,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Coordinates, CalculationMethod, PrayerTimes, SunnahTimes } from "adhan";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useMosques, type DbMosque } from "@/lib/use-mosques";
+import { useWebPush } from "@/lib/use-push";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/prayer-times")({
@@ -111,6 +113,7 @@ function PrayerTimesPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingTone, setPlayingTone] = useState<ToneId | null>(null);
   const firedRef = useRef<Set<string>>(new Set());
+  const { status: pushStatus, busy: pushBusy, subscribe: enableBackground } = useWebPush();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -161,8 +164,32 @@ function PrayerTimesPage() {
     [preferredMosque, defaultCoord]
   );
 
+  // IP-based fallback so the picker always loads results, even if the user
+  // denies/ignores the browser geolocation prompt.
+  const ipFallback = useCallback(async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("ip lookup failed");
+      const j = (await res.json()) as { latitude?: number; longitude?: number; city?: string; country_name?: string };
+      if (typeof j.latitude === "number" && typeof j.longitude === "number") {
+        setDefaultCoord({
+          lat: j.latitude,
+          lng: j.longitude,
+          label: `Approx · ${j.city ?? "your area"}${j.country_name ? `, ${j.country_name}` : ""}`,
+        });
+        toast.message("Using approximate location", { description: "Share your precise location for better accuracy." });
+        return true;
+      }
+    } catch { /* swallow */ }
+    return false;
+  }, []);
+
   const useMyLocation = useCallback(() => {
-    if (!navigator.geolocation) return toast.error("Geolocation not supported");
+    if (!navigator.geolocation) {
+      toast.error("Geolocation not supported — using approximate location");
+      void ipFallback();
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -170,10 +197,20 @@ function PrayerTimesPage() {
         setLocating(false);
         toast.success("Location detected");
       },
-      (err) => { setLocating(false); toast.error(err.message || "Could not get location"); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      async (err) => {
+        setLocating(false);
+        const reasons: Record<number, string> = {
+          1: "Location permission was denied. Enable it in your browser settings, or pick a mosque manually.",
+          2: "Your device couldn't determine its position right now.",
+          3: "Location request timed out.",
+        };
+        const msg = reasons[err.code] ?? err.message ?? "Could not get location";
+        const ok = await ipFallback();
+        if (!ok) toast.error(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
     );
-  }, []);
+  }, [ipFallback]);
 
   type ProfilePatch = {
     preferred_mosque_id?: string | null;
@@ -350,25 +387,51 @@ function PrayerTimesPage() {
     await persist({ azan_volume: v });
   };
 
-  // Custom azan upload
+  // Custom azan upload — validate format, size and duration before uploading.
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const ALLOWED_TYPES = ["audio/mpeg", "audio/mp3", "audio/ogg", "audio/wav", "audio/x-wav", "audio/wave"];
+  const ALLOWED_EXTS = ["mp3", "ogg", "wav"];
+  const MAX_SIZE = 8 * 1024 * 1024;
+  const MIN_DURATION = 5;
+  const MAX_DURATION = 240;
+
+  const probeDuration = (file: File) =>
+    new Promise<number>((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const audio = document.createElement("audio");
+      audio.preload = "metadata";
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        if (!isFinite(audio.duration) || audio.duration <= 0) reject(new Error("Could not read audio duration"));
+        else resolve(audio.duration);
+      };
+      audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error("This audio file can't be played")); };
+      audio.src = url;
+    });
+
   const handleUpload = async (file: File) => {
     if (!user) return toast.info("Sign in to upload your azan");
-    if (!file.type.startsWith("audio/")) return toast.error("Please choose an audio file");
-    if (file.size > 8 * 1024 * 1024) return toast.error("Max file size is 8 MB");
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const typeOk = ALLOWED_TYPES.includes(file.type) || (!file.type && ALLOWED_EXTS.includes(ext));
+    if (!typeOk) return toast.error("Unsupported format — use MP3, OGG or WAV");
+    if (file.size === 0) return toast.error("File is empty");
+    if (file.size > MAX_SIZE) return toast.error(`Max file size is 8 MB (yours is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
-      const path = `${user.id}/azan.${ext}`;
+      const duration = await probeDuration(file);
+      if (duration < MIN_DURATION) throw new Error(`Audio is too short (${duration.toFixed(1)}s, min ${MIN_DURATION}s)`);
+      if (duration > MAX_DURATION) throw new Error(`Audio is too long (${duration.toFixed(0)}s, max ${MAX_DURATION}s)`);
+      const safeExt = ALLOWED_EXTS.includes(ext) ? ext : "mp3";
+      const path = `${user.id}/azan.${safeExt}`;
       const { error: upErr } = await supabase.storage.from("azan-uploads").upload(path, file, {
-        upsert: true, contentType: file.type,
+        upsert: true, contentType: file.type || `audio/${safeExt}`,
       });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from("azan-uploads").getPublicUrl(path);
       const url = `${data.publicUrl}?t=${Date.now()}`;
       setCustomUrl(url);
       await persist({ custom_azan_url: url });
-      toast.success("Custom azan uploaded");
+      toast.success(`Uploaded · ${duration.toFixed(0)}s`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -441,6 +504,15 @@ function PrayerTimesPage() {
           {preferredMosque && (
             <button onClick={clearDefault} className="text-xs text-primary-foreground/70 underline">Clear default</button>
           )}
+          <button
+            onClick={enableBackground}
+            disabled={pushBusy || pushStatus === "subscribed" || pushStatus === "unsupported"}
+            className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors disabled:opacity-60"
+            title={pushStatus === "unsupported" ? "Push not supported on this device" : "Get alerts even when the app is closed"}
+          >
+            {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
+            {pushStatus === "subscribed" ? "Background alerts on" : "Enable background alerts"}
+          </button>
         </div>
 
         {next && defaultTimes && (
@@ -598,6 +670,13 @@ function PrayerTimesPage() {
                   >
                     {enabled ? <><Bell className="h-3 w-3" /> Alert on</> : <><BellOff className="h-3 w-3" /> Alert off</>}
                   </button>
+                  <Link
+                    to="/prayer-times/$prayer"
+                    params={{ prayer: p }}
+                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-semibold ${isNext ? "text-gold hover:underline" : "text-secondary hover:underline"}`}
+                  >
+                    <Info className="h-3 w-3" /> Details
+                  </Link>
                 </div>
               </div>
             );
@@ -645,6 +724,13 @@ function PrayerTimesPage() {
             className="h-2 w-full max-w-sm cursor-pointer accent-secondary"
           />
           <span className="w-10 text-right text-xs text-muted-foreground">{volume}%</span>
+          <button
+            onClick={() => (playingTone ? stopTone() : playTone(toneId))}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-emerald px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+            title="Play the selected tone at this volume so you can verify the level"
+          >
+            {playingTone ? <><Square className="h-3 w-3" /> Stop test</> : <><Play className="h-3 w-3" /> Test volume</>}
+          </button>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
