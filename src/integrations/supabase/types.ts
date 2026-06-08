@@ -268,6 +268,30 @@ export type Database = {
         }
         Relationships: []
       }
+      prayer_alert_log: {
+        Row: {
+          created_at: string
+          fired_for: string
+          id: string
+          prayer: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fired_for: string
+          id?: string
+          prayer: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fired_for?: string
+          id?: string
+          prayer?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
