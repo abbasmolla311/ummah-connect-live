@@ -676,6 +676,7 @@ function PrayerTimesPage() {
                     className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-semibold ${isNext ? "text-gold hover:underline" : "text-secondary hover:underline"}`}
                   >
                     <Info className="h-3 w-3" /> Details
+                  </Link>
                 </div>
               </div>
             );
