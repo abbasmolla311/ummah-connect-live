@@ -67,8 +67,8 @@ function countdown(target: Date, now: Date) {
 }
 
 function PrayerDetailsPage() {
-  const params = Route.useParams();
-  const prayer = params.prayer;
+  const params = Route.useParams() as { prayer: PrayerKey };
+  const prayer: PrayerKey = params.prayer;
   const { user } = useAuth();
   const { mosques, loading } = useMosques();
 

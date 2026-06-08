@@ -26,8 +26,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrayerTimesPrayerRouteImport } from './routes/prayer-times.$prayer'
 import { Route as MosquesIdRouteImport } from './routes/mosques.$id'
 import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
+import { Route as ApiPublicHooksPrayerPushRouteImport } from './routes/api/public/hooks/prayer-push'
 
 const ZakatRoute = ZakatRouteImport.update({
   id: '/zakat',
@@ -113,6 +115,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrayerTimesPrayerRoute = PrayerTimesPrayerRouteImport.update({
+  id: '/$prayer',
+  path: '/$prayer',
+  getParentRoute: () => PrayerTimesRoute,
+} as any)
 const MosquesIdRoute = MosquesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -123,6 +130,12 @@ const AuthenticatedMosqueAdminRoute =
     id: '/mosque-admin',
     path: '/mosque-admin',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const ApiPublicHooksPrayerPushRoute =
+  ApiPublicHooksPrayerPushRouteImport.update({
+    id: '/api/public/hooks/prayer-push',
+    path: '/api/public/hooks/prayer-push',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -136,7 +149,7 @@ export interface FileRoutesByFullPath {
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRouteWithChildren
-  '/prayer-times': typeof PrayerTimesRoute
+  '/prayer-times': typeof PrayerTimesRouteWithChildren
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
@@ -144,6 +157,8 @@ export interface FileRoutesByFullPath {
   '/zakat': typeof ZakatRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
+  '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,7 +171,7 @@ export interface FileRoutesByTo {
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRouteWithChildren
-  '/prayer-times': typeof PrayerTimesRoute
+  '/prayer-times': typeof PrayerTimesRouteWithChildren
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
@@ -164,6 +179,8 @@ export interface FileRoutesByTo {
   '/zakat': typeof ZakatRoute
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
+  '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,7 +195,7 @@ export interface FileRoutesById {
   '/hadith': typeof HadithRoute
   '/live': typeof LiveRoute
   '/mosques': typeof MosquesRouteWithChildren
-  '/prayer-times': typeof PrayerTimesRoute
+  '/prayer-times': typeof PrayerTimesRouteWithChildren
   '/profile': typeof ProfileRoute
   '/qibla': typeof QiblaRoute
   '/quran': typeof QuranRoute
@@ -186,6 +203,8 @@ export interface FileRoutesById {
   '/zakat': typeof ZakatRoute
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
+  '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -208,6 +227,8 @@ export interface FileRouteTypes {
     | '/zakat'
     | '/mosque-admin'
     | '/mosques/$id'
+    | '/prayer-times/$prayer'
+    | '/api/public/hooks/prayer-push'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -228,6 +249,8 @@ export interface FileRouteTypes {
     | '/zakat'
     | '/mosque-admin'
     | '/mosques/$id'
+    | '/prayer-times/$prayer'
+    | '/api/public/hooks/prayer-push'
   id:
     | '__root__'
     | '/'
@@ -249,6 +272,8 @@ export interface FileRouteTypes {
     | '/zakat'
     | '/_authenticated/mosque-admin'
     | '/mosques/$id'
+    | '/prayer-times/$prayer'
+    | '/api/public/hooks/prayer-push'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -263,12 +288,13 @@ export interface RootRouteChildren {
   HadithRoute: typeof HadithRoute
   LiveRoute: typeof LiveRoute
   MosquesRoute: typeof MosquesRouteWithChildren
-  PrayerTimesRoute: typeof PrayerTimesRoute
+  PrayerTimesRoute: typeof PrayerTimesRouteWithChildren
   ProfileRoute: typeof ProfileRoute
   QiblaRoute: typeof QiblaRoute
   QuranRoute: typeof QuranRoute
   TasbihRoute: typeof TasbihRoute
   ZakatRoute: typeof ZakatRoute
+  ApiPublicHooksPrayerPushRoute: typeof ApiPublicHooksPrayerPushRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prayer-times/$prayer': {
+      id: '/prayer-times/$prayer'
+      path: '/$prayer'
+      fullPath: '/prayer-times/$prayer'
+      preLoaderRoute: typeof PrayerTimesPrayerRouteImport
+      parentRoute: typeof PrayerTimesRoute
+    }
     '/mosques/$id': {
       id: '/mosques/$id'
       path: '/$id'
@@ -405,6 +438,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/mosque-admin'
       preLoaderRoute: typeof AuthenticatedMosqueAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/hooks/prayer-push': {
+      id: '/api/public/hooks/prayer-push'
+      path: '/api/public/hooks/prayer-push'
+      fullPath: '/api/public/hooks/prayer-push'
+      preLoaderRoute: typeof ApiPublicHooksPrayerPushRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -432,6 +472,18 @@ const MosquesRouteChildren: MosquesRouteChildren = {
 const MosquesRouteWithChildren =
   MosquesRoute._addFileChildren(MosquesRouteChildren)
 
+interface PrayerTimesRouteChildren {
+  PrayerTimesPrayerRoute: typeof PrayerTimesPrayerRoute
+}
+
+const PrayerTimesRouteChildren: PrayerTimesRouteChildren = {
+  PrayerTimesPrayerRoute: PrayerTimesPrayerRoute,
+}
+
+const PrayerTimesRouteWithChildren = PrayerTimesRoute._addFileChildren(
+  PrayerTimesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -444,12 +496,13 @@ const rootRouteChildren: RootRouteChildren = {
   HadithRoute: HadithRoute,
   LiveRoute: LiveRoute,
   MosquesRoute: MosquesRouteWithChildren,
-  PrayerTimesRoute: PrayerTimesRoute,
+  PrayerTimesRoute: PrayerTimesRouteWithChildren,
   ProfileRoute: ProfileRoute,
   QiblaRoute: QiblaRoute,
   QuranRoute: QuranRoute,
   TasbihRoute: TasbihRoute,
   ZakatRoute: ZakatRoute,
+  ApiPublicHooksPrayerPushRoute: ApiPublicHooksPrayerPushRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
