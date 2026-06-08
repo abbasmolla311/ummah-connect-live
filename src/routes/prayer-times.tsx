@@ -113,6 +113,7 @@ function PrayerTimesPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingTone, setPlayingTone] = useState<ToneId | null>(null);
   const firedRef = useRef<Set<string>>(new Set());
+  const { status: pushStatus, busy: pushBusy, subscribe: enableBackground } = useWebPush();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
