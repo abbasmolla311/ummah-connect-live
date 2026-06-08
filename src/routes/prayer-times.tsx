@@ -724,6 +724,13 @@ function PrayerTimesPage() {
             className="h-2 w-full max-w-sm cursor-pointer accent-secondary"
           />
           <span className="w-10 text-right text-xs text-muted-foreground">{volume}%</span>
+          <button
+            onClick={() => (playingTone ? stopTone() : playTone(toneId))}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-emerald px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+            title="Play the selected tone at this volume so you can verify the level"
+          >
+            {playingTone ? <><Square className="h-3 w-3" /> Stop test</> : <><Play className="h-3 w-3" /> Test volume</>}
+          </button>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
