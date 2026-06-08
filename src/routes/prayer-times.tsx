@@ -670,6 +670,12 @@ function PrayerTimesPage() {
                   >
                     {enabled ? <><Bell className="h-3 w-3" /> Alert on</> : <><BellOff className="h-3 w-3" /> Alert off</>}
                   </button>
+                  <Link
+                    to="/prayer-times/$prayer"
+                    params={{ prayer: p }}
+                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-semibold ${isNext ? "text-gold hover:underline" : "text-secondary hover:underline"}`}
+                  >
+                    <Info className="h-3 w-3" /> Details
                 </div>
               </div>
             );
