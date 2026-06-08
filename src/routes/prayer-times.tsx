@@ -163,8 +163,32 @@ function PrayerTimesPage() {
     [preferredMosque, defaultCoord]
   );
 
+  // IP-based fallback so the picker always loads results, even if the user
+  // denies/ignores the browser geolocation prompt.
+  const ipFallback = useCallback(async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("ip lookup failed");
+      const j = (await res.json()) as { latitude?: number; longitude?: number; city?: string; country_name?: string };
+      if (typeof j.latitude === "number" && typeof j.longitude === "number") {
+        setDefaultCoord({
+          lat: j.latitude,
+          lng: j.longitude,
+          label: `Approx · ${j.city ?? "your area"}${j.country_name ? `, ${j.country_name}` : ""}`,
+        });
+        toast.message("Using approximate location", { description: "Share your precise location for better accuracy." });
+        return true;
+      }
+    } catch { /* swallow */ }
+    return false;
+  }, []);
+
   const useMyLocation = useCallback(() => {
-    if (!navigator.geolocation) return toast.error("Geolocation not supported");
+    if (!navigator.geolocation) {
+      toast.error("Geolocation not supported — using approximate location");
+      void ipFallback();
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -172,10 +196,20 @@ function PrayerTimesPage() {
         setLocating(false);
         toast.success("Location detected");
       },
-      (err) => { setLocating(false); toast.error(err.message || "Could not get location"); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      async (err) => {
+        setLocating(false);
+        const reasons: Record<number, string> = {
+          1: "Location permission was denied. Enable it in your browser settings, or pick a mosque manually.",
+          2: "Your device couldn't determine its position right now.",
+          3: "Location request timed out.",
+        };
+        const msg = reasons[err.code] ?? err.message ?? "Could not get location";
+        const ok = await ipFallback();
+        if (!ok) toast.error(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
     );
-  }, []);
+  }, [ipFallback]);
 
   type ProfilePatch = {
     preferred_mosque_id?: string | null;
