@@ -386,25 +386,51 @@ function PrayerTimesPage() {
     await persist({ azan_volume: v });
   };
 
-  // Custom azan upload
+  // Custom azan upload — validate format, size and duration before uploading.
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const ALLOWED_TYPES = ["audio/mpeg", "audio/mp3", "audio/ogg", "audio/wav", "audio/x-wav", "audio/wave"];
+  const ALLOWED_EXTS = ["mp3", "ogg", "wav"];
+  const MAX_SIZE = 8 * 1024 * 1024;
+  const MIN_DURATION = 5;
+  const MAX_DURATION = 240;
+
+  const probeDuration = (file: File) =>
+    new Promise<number>((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const audio = document.createElement("audio");
+      audio.preload = "metadata";
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        if (!isFinite(audio.duration) || audio.duration <= 0) reject(new Error("Could not read audio duration"));
+        else resolve(audio.duration);
+      };
+      audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error("This audio file can't be played")); };
+      audio.src = url;
+    });
+
   const handleUpload = async (file: File) => {
     if (!user) return toast.info("Sign in to upload your azan");
-    if (!file.type.startsWith("audio/")) return toast.error("Please choose an audio file");
-    if (file.size > 8 * 1024 * 1024) return toast.error("Max file size is 8 MB");
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const typeOk = ALLOWED_TYPES.includes(file.type) || (!file.type && ALLOWED_EXTS.includes(ext));
+    if (!typeOk) return toast.error("Unsupported format — use MP3, OGG or WAV");
+    if (file.size === 0) return toast.error("File is empty");
+    if (file.size > MAX_SIZE) return toast.error(`Max file size is 8 MB (yours is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
-      const path = `${user.id}/azan.${ext}`;
+      const duration = await probeDuration(file);
+      if (duration < MIN_DURATION) throw new Error(`Audio is too short (${duration.toFixed(1)}s, min ${MIN_DURATION}s)`);
+      if (duration > MAX_DURATION) throw new Error(`Audio is too long (${duration.toFixed(0)}s, max ${MAX_DURATION}s)`);
+      const safeExt = ALLOWED_EXTS.includes(ext) ? ext : "mp3";
+      const path = `${user.id}/azan.${safeExt}`;
       const { error: upErr } = await supabase.storage.from("azan-uploads").upload(path, file, {
-        upsert: true, contentType: file.type,
+        upsert: true, contentType: file.type || `audio/${safeExt}`,
       });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from("azan-uploads").getPublicUrl(path);
       const url = `${data.publicUrl}?t=${Date.now()}`;
       setCustomUrl(url);
       await persist({ custom_azan_url: url });
-      toast.success("Custom azan uploaded");
+      toast.success(`Uploaded · ${duration.toFixed(0)}s`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
