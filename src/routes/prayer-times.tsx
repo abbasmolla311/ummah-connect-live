@@ -543,7 +543,28 @@ function PrayerTimesPage() {
             {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
             {pushStatus === "subscribed" ? "Background alerts on" : "Enable background alerts"}
           </button>
+          <button
+            onClick={async () => {
+              if (pushStatus !== "subscribed") { toast.info("Enable background alerts first"); return; }
+              setSendingTest(true);
+              try {
+                const res = await sendTest({ data: {} });
+                toast.success(`Test sent to ${res.sent} device${res.sent === 1 ? "" : "s"}`);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Could not send test");
+              } finally {
+                setSendingTest(false);
+              }
+            }}
+            disabled={sendingTest || pushStatus !== "subscribed"}
+            className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors disabled:opacity-60"
+            title="Send a one-time test push to your enrolled devices"
+          >
+            {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Send test notification
+          </button>
         </div>
+
 
         {next && defaultTimes && (
           <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
