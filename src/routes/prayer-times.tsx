@@ -104,6 +104,9 @@ function PrayerTimesPage() {
   const [customUrl, setCustomUrl] = useState<string | null>(null);
   const [volume, setVolume] = useState(90);
   const [alerts, setAlerts] = useState<PrayerAlerts>(DEFAULT_ALERTS);
+  const [quietStart, setQuietStart] = useState<string>("");
+  const [quietEnd, setQuietEnd] = useState<string>("");
+  const [leadMinutes, setLeadMinutes] = useState<number>(5);
 
   // UI state
   const [pickerFor, setPickerFor] = useState<"default" | PrayerKey | null>(null);
@@ -113,11 +116,14 @@ function PrayerTimesPage() {
   const [now, setNow] = useState<Date>(new Date());
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingTone, setPlayingTone] = useState<ToneId | null>(null);
   const firedRef = useRef<Set<string>>(new Set());
   const { status: pushStatus, busy: pushBusy, subscribe: enableBackground } = useWebPush();
+  const sendTest = useServerFn(sendTestPrayerPush);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
