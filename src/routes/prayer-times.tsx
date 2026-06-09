@@ -587,12 +587,36 @@ function PrayerTimesPage() {
       {/* Picker panel */}
       {pickerFor && (
         <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-serif text-lg">
               {pickerFor === "default" ? "Choose your default mosque" : `Choose mosque for ${pickerFor}`}
             </h2>
-            <button onClick={() => setPickerFor(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+            <div className="flex items-center gap-2">
+              {defaultMosqueCoord && nearby.length > 0 && (
+                <button
+                  onClick={() => setShowMap((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                >
+                  <MapIcon className="h-3.5 w-3.5" /> {showMap ? "Hide map" : "Map view"}
+                </button>
+              )}
+              <button onClick={() => setPickerFor(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+            </div>
           </div>
+
+          {showMap && defaultMosqueCoord && nearby.length > 0 && (
+            <div className="mt-4">
+              <Suspense fallback={<div className="h-72 w-full animate-pulse rounded-xl bg-muted" />}>
+                <MosqueMap
+                  center={defaultMosqueCoord}
+                  mosques={nearby}
+                  onSelect={(id) => selectMosque(id)}
+                  selectedId={pickerFor === "default" ? preferredId : (perPrayer[pickerFor as PrayerKey] ?? null)}
+                />
+              </Suspense>
+              <p className="mt-2 text-xs text-muted-foreground">Tap a marker to view a mosque and select it for this prayer.</p>
+            </div>
+          )}
           <div className="relative mt-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
