@@ -18,7 +18,10 @@ export const Route = createFileRoute("/api/public/hooks/prayer-push")({
           const [{ data: profiles }, { data: subs }, { data: mosques }] = await Promise.all([
             supabaseAdmin
               .from("profiles")
-              .select("user_id, preferred_mosque_id, prayer_mosques, prayer_alerts, azan_sound"),
+              .select("user_id, preferred_mosque_id, prayer_mosques, prayer_alerts, azan_sound, quiet_hours_start, quiet_hours_end, alert_lead_minutes"),
+            supabaseAdmin.from("push_subscriptions").select("user_id, endpoint, p256dh, auth"),
+            supabaseAdmin.from("mosques").select("id, name, city, latitude, longitude"),
+          ]);
             supabaseAdmin.from("push_subscriptions").select("user_id, endpoint, p256dh, auth"),
             supabaseAdmin.from("mosques").select("id, name, city, latitude, longitude"),
           ]);
