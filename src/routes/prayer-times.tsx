@@ -233,12 +233,27 @@ function PrayerTimesPage() {
     custom_azan_url?: string | null;
     azan_volume?: number;
     prayer_alerts?: PrayerAlerts;
+    quiet_hours_start?: string | null;
+    quiet_hours_end?: string | null;
+    alert_lead_minutes?: number;
   };
   const persist = async (patch: ProfilePatch) => {
     if (!user) { toast.info("Sign in to save your preferences"); return; }
     const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
     if (error) toast.error("Could not save preference");
   };
+
+  // Quiet hours helper — supports overnight ranges.
+  const isInQuietHours = useCallback((d: Date) => {
+    if (!quietStart || !quietEnd) return false;
+    const [sh, sm] = quietStart.split(":").map(Number);
+    const [eh, em] = quietEnd.split(":").map(Number);
+    if (![sh, sm, eh, em].every(Number.isFinite)) return false;
+    const cur = d.getHours() * 60 + d.getMinutes();
+    const s = sh * 60 + sm; const e = eh * 60 + em;
+    if (s === e) return false;
+    return s < e ? cur >= s && cur < e : cur >= s || cur < e;
+  }, [quietStart, quietEnd]);
 
   const selectMosque = async (mosqueId: string) => {
     if (pickerFor === "default") {
