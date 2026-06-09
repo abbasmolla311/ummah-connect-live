@@ -147,7 +147,7 @@ function PrayerTimesPage() {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("preferred_mosque_id, prayer_mosques, azan_sound, custom_azan_url, azan_volume, prayer_alerts")
+      .select("preferred_mosque_id, prayer_mosques, azan_sound, custom_azan_url, azan_volume, prayer_alerts, quiet_hours_start, quiet_hours_end, alert_lead_minutes")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -162,6 +162,10 @@ function PrayerTimesPage() {
         if (data.prayer_alerts && typeof data.prayer_alerts === "object") {
           setAlerts({ ...DEFAULT_ALERTS, ...(data.prayer_alerts as Partial<PrayerAlerts>) });
         }
+        // Times come back as "HH:MM:SS"; <input type="time"> wants "HH:MM".
+        if (data.quiet_hours_start) setQuietStart(String(data.quiet_hours_start).slice(0, 5));
+        if (data.quiet_hours_end) setQuietEnd(String(data.quiet_hours_end).slice(0, 5));
+        if (typeof data.alert_lead_minutes === "number") setLeadMinutes(data.alert_lead_minutes);
       });
   }, [user]);
 
