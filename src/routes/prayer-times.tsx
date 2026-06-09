@@ -345,6 +345,7 @@ function PrayerTimesPage() {
       if (firedRef.current.has(key)) continue;
       const diff = t.getTime() - now.getTime();
       if (diff <= 0 && diff > -60_000) {
+        if (isInQuietHours(now)) { firedRef.current.add(key); continue; }
         firedRef.current.add(key);
         triggerPrayerAlert(p, t);
       }
