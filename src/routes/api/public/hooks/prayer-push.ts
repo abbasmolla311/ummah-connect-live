@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/public/hooks/prayer-push")({
           const [{ data: profiles }, { data: subs }, { data: mosques }] = await Promise.all([
             supabaseAdmin
               .from("profiles")
-              .select("user_id, preferred_mosque_id, prayer_mosques, prayer_alerts, azan_sound"),
+              .select("user_id, preferred_mosque_id, prayer_mosques, prayer_alerts, azan_sound, quiet_hours_start, quiet_hours_end, alert_lead_minutes"),
             supabaseAdmin.from("push_subscriptions").select("user_id, endpoint, p256dh, auth"),
             supabaseAdmin.from("mosques").select("id, name, city, latitude, longitude"),
           ]);
@@ -53,12 +53,30 @@ export const Route = createFileRoute("/api/public/hooks/prayer-push")({
           const expired: string[] = [];
           const logRows: { user_id: string; prayer: string; fired_for: string }[] = [];
 
+          // Quiet-hours helper: supports overnight ranges (22:00 → 06:00).
+          const parseHm = (v: string | null | undefined): { h: number; m: number } | null => {
+            if (!v) return null;
+            const [hStr, mStr] = v.split(":");
+            const h = Number(hStr); const m = Number(mStr);
+            if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+            return { h, m };
+          };
+          const isQuiet = (d: Date, start: string | null, end: string | null) => {
+            const s = parseHm(start); const e = parseHm(end);
+            if (!s || !e) return false;
+            const cur = d.getHours() * 60 + d.getMinutes();
+            const sm = s.h * 60 + s.m; const em = e.h * 60 + e.m;
+            if (sm === em) return false;
+            return sm < em ? cur >= sm && cur < em : cur >= sm || cur < em;
+          };
+
           for (const profile of profiles) {
             const userSubs = subsByUser.get(profile.user_id);
             if (!userSubs || userSubs.length === 0) continue;
             const alerts = (profile.prayer_alerts as Partial<Record<PrayerKey, boolean>>) ?? {};
             const perPrayer = (profile.prayer_mosques as Partial<Record<PrayerKey, string>>) ?? {};
             const defaultMosque = profile.preferred_mosque_id ? mosqueById.get(profile.preferred_mosque_id) : null;
+            const leadMin = Math.max(0, Math.min(60, Number(profile.alert_lead_minutes ?? 5)));
 
             for (const p of PRAYERS) {
               if (alerts[p] === false) continue;
@@ -68,8 +86,12 @@ export const Route = createFileRoute("/api/public/hooks/prayer-push")({
               const pt = new PrayerTimes(new Coordinates(mosque.latitude, mosque.longitude), startedAt, params);
               const t = pt[p];
               const diffMs = t.getTime() - startedAt.getTime();
-              // Fire when prayer is within the next 2 minutes (cron runs every minute).
-              if (diffMs > 2 * 60_000 || diffMs < -60_000) continue;
+              // Fire when prayer is within the user's chosen lead window (cron runs every minute).
+              const windowMs = (leadMin + 1) * 60_000;
+              if (diffMs > windowMs || diffMs < -60_000) continue;
+              // Skip during user-configured quiet hours.
+              if (isQuiet(startedAt, profile.quiet_hours_start as string | null, profile.quiet_hours_end as string | null)) continue;
+
 
               const label = p.charAt(0).toUpperCase() + p.slice(1);
               const payload = JSON.stringify({

@@ -294,6 +294,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          alert_lead_minutes: number
           avatar_url: string | null
           azan_sound: string
           azan_volume: number
@@ -306,10 +307,13 @@ export type Database = {
           prayer_alerts: Json
           prayer_mosques: Json
           preferred_mosque_id: string | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          alert_lead_minutes?: number
           avatar_url?: string | null
           azan_sound?: string
           azan_volume?: number
@@ -322,10 +326,13 @@ export type Database = {
           prayer_alerts?: Json
           prayer_mosques?: Json
           preferred_mosque_id?: string | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          alert_lead_minutes?: number
           avatar_url?: string | null
           azan_sound?: string
           azan_volume?: number
@@ -338,6 +345,8 @@ export type Database = {
           prayer_alerts?: Json
           prayer_mosques?: Json
           preferred_mosque_id?: string | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
           updated_at?: string
           user_id?: string
         }

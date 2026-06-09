@@ -122,3 +122,58 @@ export const sendAzanPush = createServerFn({ method: "POST" })
 
     return { sent, failed };
   });
+
+const TestSchema = z.object({
+  title: z.string().min(1).max(120).optional(),
+  body: z.string().min(1).max(500).optional(),
+  url: z.string().max(500).optional(),
+  tag: z.string().max(120).optional(),
+}).partial();
+
+/** Sends a one-off test push to the signed-in user's own devices. */
+export const sendTestPrayerPush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => TestSchema.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { data: subs } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", userId);
+    if (!subs || subs.length === 0) {
+      throw new Error("No devices subscribed yet — enable background alerts first.");
+    }
+    const webpush = (await import("web-push")).default;
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || "mailto:admin@deenconnect.app",
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!,
+    );
+    const payload = JSON.stringify({
+      title: data.title ?? "🕌 Test prayer notification",
+      body: data.body ?? "If you can see this, background prayer alerts are working.",
+      url: data.url ?? "/prayer-times",
+      tag: data.tag ?? `prayer-test-${Date.now()}`,
+    });
+    let sent = 0;
+    const expired: string[] = [];
+    await Promise.all(
+      subs.map(async (s) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            payload,
+          );
+          sent++;
+        } catch (err) {
+          const status = (err as { statusCode?: number })?.statusCode;
+          if (status === 404 || status === 410) expired.push(s.id);
+        }
+      }),
+    );
+    if (expired.length > 0) {
+      await supabaseAdmin.from("push_subscriptions").delete().in("id", expired);
+    }
+    return { sent };
+  });
+

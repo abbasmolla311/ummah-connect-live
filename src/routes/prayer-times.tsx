@@ -2,15 +2,19 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sunrise, Sun, Sunset, Moon, Cloud, Bell, BellOff, Search, MapPin, Volume2,
   Check, Loader2, Music, Play, Square, Upload, Trash2, Repeat, X, Maximize2,
-  Info, BellRing,
+  Info, BellRing, Map as MapIcon, MoonStar, Timer, Send,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { Coordinates, CalculationMethod, PrayerTimes, SunnahTimes } from "adhan";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useMosques, type DbMosque } from "@/lib/use-mosques";
 import { useWebPush } from "@/lib/use-push";
+import { useServerFn } from "@tanstack/react-start";
+import { sendTestPrayerPush } from "@/lib/push.functions";
 import { toast } from "sonner";
+
+const MosqueMap = lazy(() => import("@/components/MosqueMap"));
 
 export const Route = createFileRoute("/prayer-times")({
   head: () => ({
@@ -100,6 +104,9 @@ function PrayerTimesPage() {
   const [customUrl, setCustomUrl] = useState<string | null>(null);
   const [volume, setVolume] = useState(90);
   const [alerts, setAlerts] = useState<PrayerAlerts>(DEFAULT_ALERTS);
+  const [quietStart, setQuietStart] = useState<string>("");
+  const [quietEnd, setQuietEnd] = useState<string>("");
+  const [leadMinutes, setLeadMinutes] = useState<number>(5);
 
   // UI state
   const [pickerFor, setPickerFor] = useState<"default" | PrayerKey | null>(null);
@@ -109,11 +116,14 @@ function PrayerTimesPage() {
   const [now, setNow] = useState<Date>(new Date());
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingTone, setPlayingTone] = useState<ToneId | null>(null);
   const firedRef = useRef<Set<string>>(new Set());
   const { status: pushStatus, busy: pushBusy, subscribe: enableBackground } = useWebPush();
+  const sendTest = useServerFn(sendTestPrayerPush);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -137,7 +147,7 @@ function PrayerTimesPage() {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("preferred_mosque_id, prayer_mosques, azan_sound, custom_azan_url, azan_volume, prayer_alerts")
+      .select("preferred_mosque_id, prayer_mosques, azan_sound, custom_azan_url, azan_volume, prayer_alerts, quiet_hours_start, quiet_hours_end, alert_lead_minutes")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -152,6 +162,10 @@ function PrayerTimesPage() {
         if (data.prayer_alerts && typeof data.prayer_alerts === "object") {
           setAlerts({ ...DEFAULT_ALERTS, ...(data.prayer_alerts as Partial<PrayerAlerts>) });
         }
+        // Times come back as "HH:MM:SS"; <input type="time"> wants "HH:MM".
+        if (data.quiet_hours_start) setQuietStart(String(data.quiet_hours_start).slice(0, 5));
+        if (data.quiet_hours_end) setQuietEnd(String(data.quiet_hours_end).slice(0, 5));
+        if (typeof data.alert_lead_minutes === "number") setLeadMinutes(data.alert_lead_minutes);
       });
   }, [user]);
 
@@ -219,12 +233,27 @@ function PrayerTimesPage() {
     custom_azan_url?: string | null;
     azan_volume?: number;
     prayer_alerts?: PrayerAlerts;
+    quiet_hours_start?: string | null;
+    quiet_hours_end?: string | null;
+    alert_lead_minutes?: number;
   };
   const persist = async (patch: ProfilePatch) => {
     if (!user) { toast.info("Sign in to save your preferences"); return; }
     const { error } = await supabase.from("profiles").update(patch).eq("user_id", user.id);
     if (error) toast.error("Could not save preference");
   };
+
+  // Quiet hours helper — supports overnight ranges.
+  const isInQuietHours = useCallback((d: Date) => {
+    if (!quietStart || !quietEnd) return false;
+    const [sh, sm] = quietStart.split(":").map(Number);
+    const [eh, em] = quietEnd.split(":").map(Number);
+    if (![sh, sm, eh, em].every(Number.isFinite)) return false;
+    const cur = d.getHours() * 60 + d.getMinutes();
+    const s = sh * 60 + sm; const e = eh * 60 + em;
+    if (s === e) return false;
+    return s < e ? cur >= s && cur < e : cur >= s || cur < e;
+  }, [quietStart, quietEnd]);
 
   const selectMosque = async (mosqueId: string) => {
     if (pickerFor === "default") {
@@ -316,6 +345,7 @@ function PrayerTimesPage() {
       if (firedRef.current.has(key)) continue;
       const diff = t.getTime() - now.getTime();
       if (diff <= 0 && diff > -60_000) {
+        if (isInQuietHours(now)) { firedRef.current.add(key); continue; }
         firedRef.current.add(key);
         triggerPrayerAlert(p, t);
       }
@@ -513,7 +543,28 @@ function PrayerTimesPage() {
             {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
             {pushStatus === "subscribed" ? "Background alerts on" : "Enable background alerts"}
           </button>
+          <button
+            onClick={async () => {
+              if (pushStatus !== "subscribed") { toast.info("Enable background alerts first"); return; }
+              setSendingTest(true);
+              try {
+                const res = await sendTest({ data: {} });
+                toast.success(`Test sent to ${res.sent} device${res.sent === 1 ? "" : "s"}`);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Could not send test");
+              } finally {
+                setSendingTest(false);
+              }
+            }}
+            disabled={sendingTest || pushStatus !== "subscribed"}
+            className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold hover:text-gold-foreground transition-colors disabled:opacity-60"
+            title="Send a one-time test push to your enrolled devices"
+          >
+            {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Send test notification
+          </button>
         </div>
+
 
         {next && defaultTimes && (
           <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
@@ -536,12 +587,36 @@ function PrayerTimesPage() {
       {/* Picker panel */}
       {pickerFor && (
         <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-serif text-lg">
               {pickerFor === "default" ? "Choose your default mosque" : `Choose mosque for ${pickerFor}`}
             </h2>
-            <button onClick={() => setPickerFor(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+            <div className="flex items-center gap-2">
+              {defaultMosqueCoord && nearby.length > 0 && (
+                <button
+                  onClick={() => setShowMap((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                >
+                  <MapIcon className="h-3.5 w-3.5" /> {showMap ? "Hide map" : "Map view"}
+                </button>
+              )}
+              <button onClick={() => setPickerFor(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+            </div>
           </div>
+
+          {showMap && defaultMosqueCoord && nearby.length > 0 && (
+            <div className="mt-4">
+              <Suspense fallback={<div className="h-72 w-full animate-pulse rounded-xl bg-muted" />}>
+                <MosqueMap
+                  center={defaultMosqueCoord}
+                  mosques={nearby}
+                  onSelect={(id) => selectMosque(id)}
+                  selectedId={pickerFor === "default" ? preferredId : (perPrayer[pickerFor as PrayerKey] ?? null)}
+                />
+              </Suspense>
+              <p className="mt-2 text-xs text-muted-foreground">Tap a marker to view a mosque and select it for this prayer.</p>
+            </div>
+          )}
           <div className="relative mt-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -810,6 +885,86 @@ function PrayerTimesPage() {
           </select>
         </div>
       </div>
+
+      {/* Quiet hours + alert lead time */}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-serif text-xl">
+            <MoonStar className="h-5 w-5 text-secondary" /> Quiet hours
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Skip notifications during these hours. Overnight ranges (e.g. 22:00 → 06:00) work.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="text-xs">
+              <span className="block text-muted-foreground">Start</span>
+              <input
+                type="time" value={quietStart}
+                onChange={(e) => setQuietStart(e.target.value)}
+                onBlur={(e) => persist({ quiet_hours_start: e.target.value || null })}
+                className="mt-1 h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary"
+              />
+            </label>
+            <label className="text-xs">
+              <span className="block text-muted-foreground">End</span>
+              <input
+                type="time" value={quietEnd}
+                onChange={(e) => setQuietEnd(e.target.value)}
+                onBlur={(e) => persist({ quiet_hours_end: e.target.value || null })}
+                className="mt-1 h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary"
+              />
+            </label>
+            {(quietStart || quietEnd) && (
+              <button
+                onClick={async () => {
+                  setQuietStart(""); setQuietEnd("");
+                  await persist({ quiet_hours_start: null, quiet_hours_end: null });
+                  toast.success("Quiet hours cleared");
+                }}
+                className="h-10 rounded-full border border-border px-4 text-xs font-semibold hover:bg-accent"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {quietStart && quietEnd && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Currently {isInQuietHours(now) ? "inside" : "outside"} your quiet window.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-serif text-xl">
+            <Timer className="h-5 w-5 text-secondary" /> Alert lead time
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Background alerts fire this many minutes before each prayer.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              type="range" min={0} max={30} step={1} value={leadMinutes}
+              onChange={(e) => setLeadMinutes(Number(e.target.value))}
+              onMouseUp={(e) => persist({ alert_lead_minutes: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => persist({ alert_lead_minutes: Number((e.target as HTMLInputElement).value) })}
+              className="h-2 w-full cursor-pointer accent-secondary"
+            />
+            <span className="w-20 text-right text-sm font-semibold">{leadMinutes} min</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {[0, 5, 10, 15, 30].map((v) => (
+              <button
+                key={v}
+                onClick={async () => { setLeadMinutes(v); await persist({ alert_lead_minutes: v }); }}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${leadMinutes === v ? "border-secondary bg-secondary text-secondary-foreground" : "border-border hover:bg-accent"}`}
+              >
+                {v === 0 ? "On time" : `${v} min`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
 
       {/* Full-screen preview modal */}
       {previewOpen && (
