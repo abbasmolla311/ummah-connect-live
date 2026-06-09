@@ -886,6 +886,86 @@ function PrayerTimesPage() {
         </div>
       </div>
 
+      {/* Quiet hours + alert lead time */}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-serif text-xl">
+            <MoonStar className="h-5 w-5 text-secondary" /> Quiet hours
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Skip notifications during these hours. Overnight ranges (e.g. 22:00 → 06:00) work.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="text-xs">
+              <span className="block text-muted-foreground">Start</span>
+              <input
+                type="time" value={quietStart}
+                onChange={(e) => setQuietStart(e.target.value)}
+                onBlur={(e) => persist({ quiet_hours_start: e.target.value || null })}
+                className="mt-1 h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary"
+              />
+            </label>
+            <label className="text-xs">
+              <span className="block text-muted-foreground">End</span>
+              <input
+                type="time" value={quietEnd}
+                onChange={(e) => setQuietEnd(e.target.value)}
+                onBlur={(e) => persist({ quiet_hours_end: e.target.value || null })}
+                className="mt-1 h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-secondary"
+              />
+            </label>
+            {(quietStart || quietEnd) && (
+              <button
+                onClick={async () => {
+                  setQuietStart(""); setQuietEnd("");
+                  await persist({ quiet_hours_start: null, quiet_hours_end: null });
+                  toast.success("Quiet hours cleared");
+                }}
+                className="h-10 rounded-full border border-border px-4 text-xs font-semibold hover:bg-accent"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {quietStart && quietEnd && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Currently {isInQuietHours(now) ? "inside" : "outside"} your quiet window.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="flex items-center gap-2 font-serif text-xl">
+            <Timer className="h-5 w-5 text-secondary" /> Alert lead time
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Background alerts fire this many minutes before each prayer.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              type="range" min={0} max={30} step={1} value={leadMinutes}
+              onChange={(e) => setLeadMinutes(Number(e.target.value))}
+              onMouseUp={(e) => persist({ alert_lead_minutes: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => persist({ alert_lead_minutes: Number((e.target as HTMLInputElement).value) })}
+              className="h-2 w-full cursor-pointer accent-secondary"
+            />
+            <span className="w-20 text-right text-sm font-semibold">{leadMinutes} min</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {[0, 5, 10, 15, 30].map((v) => (
+              <button
+                key={v}
+                onClick={async () => { setLeadMinutes(v); await persist({ alert_lead_minutes: v }); }}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${leadMinutes === v ? "border-secondary bg-secondary text-secondary-foreground" : "border-border hover:bg-accent"}`}
+              >
+                {v === 0 ? "On time" : `${v} min`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+
       {/* Full-screen preview modal */}
       {previewOpen && (
         <PreviewModal
