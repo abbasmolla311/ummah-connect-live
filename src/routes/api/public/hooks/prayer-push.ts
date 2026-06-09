@@ -22,9 +22,6 @@ export const Route = createFileRoute("/api/public/hooks/prayer-push")({
             supabaseAdmin.from("push_subscriptions").select("user_id, endpoint, p256dh, auth"),
             supabaseAdmin.from("mosques").select("id, name, city, latitude, longitude"),
           ]);
-            supabaseAdmin.from("push_subscriptions").select("user_id, endpoint, p256dh, auth"),
-            supabaseAdmin.from("mosques").select("id, name, city, latitude, longitude"),
-          ]);
           if (!profiles || !subs || !mosques) {
             return Response.json({ ok: true, processed: 0, sent: 0 });
           }
