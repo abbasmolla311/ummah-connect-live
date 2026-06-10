@@ -12,6 +12,8 @@ import { useMosques, type DbMosque } from "@/lib/use-mosques";
 import { useWebPush } from "@/lib/use-push";
 import { useServerFn } from "@tanstack/react-start";
 import { sendTestPrayerPush } from "@/lib/push.functions";
+import { useLiveAudio } from "@/lib/use-livekit";
+import { Radio, Pause } from "lucide-react";
 import { toast } from "sonner";
 
 const MosqueMap = lazy(() => import("@/components/MosqueMap"));
@@ -584,6 +586,11 @@ function PrayerTimesPage() {
         )}
       </div>
 
+      {/* Continuous live azan player */}
+      {preferredMosque && (
+        <LiveAzanPlayer mosque={preferredMosque} />
+      )}
+
       {/* Picker panel */}
       {pickerFor && (
         <div className="mt-6 rounded-2xl border border-border bg-card p-5">
@@ -1044,6 +1051,76 @@ function PreviewModal({
           <Repeat className="h-3.5 w-3.5" /> {loop ? "Looping on" : "Looping off"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function LiveAzanPlayer({ mosque }: { mosque: DbMosque }) {
+  const [active, setActive] = useState(false);
+  const { audioRef, connected, listeners } = useLiveAudio(active ? mosque.id : null, active);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const started = mosque.live_started_at ? new Date(mosque.live_started_at) : null;
+  const lastUpdatedAgo = (() => {
+    if (!started) return null;
+    const s = Math.max(0, Math.floor((now.getTime() - started.getTime()) / 1000));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  })();
+
+  const isLive = mosque.is_live;
+
+  return (
+    <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`grid h-11 w-11 place-items-center rounded-xl ${isLive ? "bg-destructive/10 text-destructive" : "bg-accent text-muted-foreground"}`}>
+            <Radio className={`h-5 w-5 ${isLive && active ? "animate-pulse" : ""}`} />
+          </div>
+          <div>
+            <h2 className="font-serif text-xl">Live azan · {mosque.name}</h2>
+            <p className="text-xs text-muted-foreground">
+              {isLive
+                ? <>🔴 Broadcasting now{started ? ` · live for ${lastUpdatedAgo}` : ""}{active && connected ? ` · ${listeners} listening` : ""}</>
+                : started
+                  ? `Offline · last broadcast started ${started.toLocaleString()}`
+                  : "This mosque hasn't gone live yet"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {isLive ? (
+            <button
+              onClick={() => setActive((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${active ? "border border-border text-foreground hover:bg-accent" : "bg-gradient-emerald text-primary-foreground hover:opacity-90"}`}
+            >
+              {active ? <><Pause className="h-4 w-4" /> Pause</> : <><Play className="h-4 w-4" /> Play live</>}
+            </button>
+          ) : (
+            <span className="rounded-full border border-border px-4 py-2 text-xs text-muted-foreground">Not live</span>
+          )}
+          <Link
+            to="/mosques/$id"
+            params={{ id: mosque.id }}
+            className="text-xs font-semibold text-secondary underline"
+          >
+            View mosque
+          </Link>
+        </div>
+      </div>
+      <audio ref={audioRef} autoPlay playsInline className="sr-only" />
+      {active && !connected && isLive && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> Connecting to live stream…
+        </p>
+      )}
     </div>
   );
 }
