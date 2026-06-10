@@ -123,17 +123,56 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-    const onMsg = (e: MessageEvent) => {
-      if (e.data?.type === "PLAY_AZAN") {
-        const a = new Audio("/azan.mp3");
-        a.volume = 0.9;
-        a.play().catch(() => {});
+    if (typeof window === "undefined") return;
+
+    // Client-side error reporting → /api/public/client-errors (visible in server logs).
+    const report = (payload: Record<string, unknown>) => {
+      try {
+        const body = JSON.stringify({ ...payload, url: location.href });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/public/client-errors", new Blob([body], { type: "application/json" }));
+        } else {
+          fetch("/api/public/client-errors", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => {});
+        }
+      } catch {}
+    };
+    const onError = (e: ErrorEvent) =>
+      report({ kind: "error", message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error?.stack });
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const r = e.reason;
+      report({ kind: "unhandledrejection", message: r?.message ?? String(r), stack: r?.stack });
+      // Auto-invalidate stale Vite bundle when a dynamic import fails.
+      if (typeof r?.message === "string" && /Failed to fetch dynamically imported module|Importing a module script failed/i.test(r.message)) {
+        const k = "__lovable_reload";
+        if (!sessionStorage.getItem(k)) {
+          sessionStorage.setItem(k, "1");
+          location.reload();
+        }
       }
     };
-    navigator.serviceWorker.addEventListener("message", onMsg);
-    return () => navigator.serviceWorker.removeEventListener("message", onMsg);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      const onMsg = (e: MessageEvent) => {
+        if (e.data?.type === "PLAY_AZAN") {
+          const a = new Audio("/azan.mp3");
+          a.volume = 0.9;
+          a.play().catch(() => {});
+        }
+      };
+      navigator.serviceWorker.addEventListener("message", onMsg);
+      return () => {
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onRejection);
+        navigator.serviceWorker.removeEventListener("message", onMsg);
+      };
+    }
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   return (
