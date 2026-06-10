@@ -30,6 +30,7 @@ import { Route as PrayerTimesPrayerRouteImport } from './routes/prayer-times.$pr
 import { Route as MosquesIdRouteImport } from './routes/mosques.$id'
 import { Route as AuthenticatedMosqueAdminRouteImport } from './routes/_authenticated/mosque-admin'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
+import { Route as ApiPublicClientErrorsRouteImport } from './routes/api/public/client-errors'
 import { Route as ApiPublicHooksPrayerPushRouteImport } from './routes/api/public/hooks/prayer-push'
 
 const ZakatRoute = ZakatRouteImport.update({
@@ -137,6 +138,11 @@ const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
   path: '/api/public/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicClientErrorsRoute = ApiPublicClientErrorsRouteImport.update({
+  id: '/api/public/client-errors',
+  path: '/api/public/client-errors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksPrayerPushRoute =
   ApiPublicHooksPrayerPushRouteImport.update({
     id: '/api/public/hooks/prayer-push',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
   '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/client-errors': typeof ApiPublicClientErrorsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
   '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/client-errors': typeof ApiPublicClientErrorsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/mosque-admin': typeof AuthenticatedMosqueAdminRoute
   '/mosques/$id': typeof MosquesIdRoute
   '/prayer-times/$prayer': typeof PrayerTimesPrayerRoute
+  '/api/public/client-errors': typeof ApiPublicClientErrorsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/hooks/prayer-push': typeof ApiPublicHooksPrayerPushRoute
 }
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/mosque-admin'
     | '/mosques/$id'
     | '/prayer-times/$prayer'
+    | '/api/public/client-errors'
     | '/api/public/health'
     | '/api/public/hooks/prayer-push'
   fileRoutesByTo: FileRoutesByTo
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/mosque-admin'
     | '/mosques/$id'
     | '/prayer-times/$prayer'
+    | '/api/public/client-errors'
     | '/api/public/health'
     | '/api/public/hooks/prayer-push'
   id:
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mosque-admin'
     | '/mosques/$id'
     | '/prayer-times/$prayer'
+    | '/api/public/client-errors'
     | '/api/public/health'
     | '/api/public/hooks/prayer-push'
   fileRoutesById: FileRoutesById
@@ -306,6 +318,7 @@ export interface RootRouteChildren {
   QuranRoute: typeof QuranRoute
   TasbihRoute: typeof TasbihRoute
   ZakatRoute: typeof ZakatRoute
+  ApiPublicClientErrorsRoute: typeof ApiPublicClientErrorsRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
   ApiPublicHooksPrayerPushRoute: typeof ApiPublicHooksPrayerPushRoute
 }
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/client-errors': {
+      id: '/api/public/client-errors'
+      path: '/api/public/client-errors'
+      fullPath: '/api/public/client-errors'
+      preLoaderRoute: typeof ApiPublicClientErrorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/prayer-push': {
       id: '/api/public/hooks/prayer-push'
       path: '/api/public/hooks/prayer-push'
@@ -522,6 +542,7 @@ const rootRouteChildren: RootRouteChildren = {
   QuranRoute: QuranRoute,
   TasbihRoute: TasbihRoute,
   ZakatRoute: ZakatRoute,
+  ApiPublicClientErrorsRoute: ApiPublicClientErrorsRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
   ApiPublicHooksPrayerPushRoute: ApiPublicHooksPrayerPushRoute,
 }
