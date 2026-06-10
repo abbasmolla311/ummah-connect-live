@@ -586,6 +586,11 @@ function PrayerTimesPage() {
         )}
       </div>
 
+      {/* Continuous live azan player */}
+      {preferredMosque && (
+        <LiveAzanPlayer mosque={preferredMosque} />
+      )}
+
       {/* Picker panel */}
       {pickerFor && (
         <div className="mt-6 rounded-2xl border border-border bg-card p-5">
