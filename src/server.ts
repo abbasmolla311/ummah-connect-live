@@ -66,13 +66,33 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+function logRequestContext(request: Request, status: number, extra?: unknown) {
+  const url = new URL(request.url);
+  console.error(
+    "[server-500]",
+    JSON.stringify({
+      method: request.method,
+      path: url.pathname + url.search,
+      status,
+      referer: request.headers.get("referer") ?? null,
+      userAgent: request.headers.get("user-agent") ?? null,
+      at: new Date().toISOString(),
+      detail: extra instanceof Error ? { name: extra.name, message: extra.message, stack: extra.stack } : extra,
+    }),
+  );
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      if (response.status >= 500) {
+        logRequestContext(request, response.status, consumeLastCapturedError());
+      }
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
+      logRequestContext(request, 500, error);
       console.error(error);
       return brandedErrorResponse();
     }
