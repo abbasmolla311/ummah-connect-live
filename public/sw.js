@@ -1,5 +1,5 @@
 // DeenConnect service worker — PWA shell + Web Push for azan alerts.
-const CACHE = "deenconnect-v2";
+const CACHE = `deenconnect-${Date.now()}`;
 const SHELL = ["/", "/manifest.webmanifest", "/azan.mp3"];
 
 self.addEventListener("install", (event) => {
