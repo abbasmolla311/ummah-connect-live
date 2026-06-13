@@ -78,8 +78,8 @@ function QuranPage() {
           <BookOpen className="h-6 w-6 text-gold" />
         </div>
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl text-foreground">The Holy Quran</h1>
-          <p className="text-sm text-muted-foreground">Arabic · English (Sahih International)</p>
+          <h1 className="font-serif text-3xl md:text-4xl text-foreground">{t("quran.title")}</h1>
+          <p className="text-sm text-muted-foreground">{lang === "bn" ? "আরবি · বাংলা অনুবাদ" : "Arabic · English (Sahih International)"}</p>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ function QuranPage() {
                       </button>
                     </div>
                     <p dir="rtl" className="font-arabic text-2xl md:text-3xl leading-loose text-foreground">{a.text}</p>
-                    <p className="mt-3 text-base text-muted-foreground">{english[i]?.text}</p>
+                    <p className="mt-3 text-base text-muted-foreground">{translated[i]?.text}</p>
                   </div>
                 );
               })}
