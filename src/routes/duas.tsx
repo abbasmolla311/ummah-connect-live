@@ -4,13 +4,14 @@ import { Heart, Bookmark } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DUAS } from "@/lib/dua-data";
+import { useLanguage } from "@/lib/i18n";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/duas")({
   head: () => ({
     meta: [
       { title: "Daily Duas — DeenConnect" },
-      { name: "description", content: "A curated collection of authentic daily duas with Arabic text, transliteration, and English translation." },
+      { name: "description", content: "Authentic daily duas in Arabic with English and Bengali translation." },
     ],
   }),
   component: DuasPage,
@@ -20,6 +21,7 @@ function DuasPage() {
   const [category, setCategory] = useState<string>("All");
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const { lang, t } = useLanguage();
 
   useEffect(() => {
     if (!user) { setBookmarks(new Set()); return; }
@@ -30,15 +32,24 @@ function DuasPage() {
   const categories = ["All", ...Array.from(new Set(DUAS.map((d) => d.category)))];
   const filtered = category === "All" ? DUAS : DUAS.filter((d) => d.category === category);
 
+  const catLabel = (c: string) => {
+    if (c === "All") return t("common.all");
+    if (lang === "bn") {
+      const found = DUAS.find((d) => d.category === c);
+      return found?.categoryBn ?? c;
+    }
+    return c;
+  };
+
   const toggle = async (id: string, label: string) => {
-    if (!user) { toast.error("Sign in to bookmark"); return; }
+    if (!user) { toast.error(t("common.signInToBookmark")); return; }
     if (bookmarks.has(id)) {
       await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("kind", "dua").eq("ref_key", id);
       setBookmarks((s) => { const n = new Set(s); n.delete(id); return n; });
     } else {
       await supabase.from("bookmarks").insert({ user_id: user.id, kind: "dua", ref_key: id, label });
       setBookmarks((s) => new Set(s).add(id));
-      toast.success("Dua bookmarked");
+      toast.success(t("duas.bookmarked"));
     }
   };
 
@@ -49,8 +60,8 @@ function DuasPage() {
           <Heart className="h-6 w-6 text-gold" />
         </div>
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl text-foreground">Daily Duas</h1>
-          <p className="text-sm text-muted-foreground">Supplications from the Quran and Sunnah</p>
+          <h1 className="font-serif text-3xl md:text-4xl text-foreground">{t("duas.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("duas.subtitle")}</p>
         </div>
       </div>
 
@@ -62,31 +73,33 @@ function DuasPage() {
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               category === c ? "bg-gradient-emerald text-gold shadow-emerald" : "border border-border text-foreground hover:bg-accent"
             }`}
-          >{c}</button>
+          >{catLabel(c)}</button>
         ))}
       </div>
 
       <div className="space-y-4">
         {filtered.map((d) => {
           const marked = bookmarks.has(d.id);
+          const title = lang === "bn" ? d.titleBn : d.title;
+          const cat = lang === "bn" ? d.categoryBn : d.category;
           return (
             <article key={d.id} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <h2 className="font-serif text-xl text-foreground">{d.title}</h2>
-                  <span className="text-xs text-muted-foreground">{d.category}{d.reference ? ` · ${d.reference}` : ""}</span>
+                  <h2 className="font-serif text-xl text-foreground">{title}</h2>
+                  <span className="text-xs text-muted-foreground">{cat}{d.reference ? ` · ${d.reference}` : ""}</span>
                 </div>
                 <button
                   onClick={() => toggle(d.id, d.title)}
                   className={`rounded-md p-1.5 ${marked ? "text-gold" : "text-muted-foreground hover:text-gold"}`}
-                  aria-label="Bookmark"
+                  aria-label={t("common.bookmark")}
                 >
                   <Bookmark className="h-4 w-4" fill={marked ? "currentColor" : "none"} />
                 </button>
               </div>
               <p dir="rtl" className="font-arabic text-2xl leading-loose text-foreground">{d.arabic}</p>
               <p className="mt-3 text-sm italic text-muted-foreground">{d.transliteration}</p>
-              <p className="mt-2 text-foreground">{d.english}</p>
+              <p className="mt-2 text-foreground">{lang === "bn" ? d.bengali : d.english}</p>
             </article>
           );
         })}

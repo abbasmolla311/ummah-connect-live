@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { BookOpen, Bookmark, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/lib/i18n";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/quran")({
   head: () => ({
     meta: [
       { title: "Quran — DeenConnect" },
-      { name: "description", content: "Read the Holy Quran in Arabic with English translation, surah by surah." },
+      { name: "description", content: "Read the Holy Quran in Arabic with English and Bengali translation, surah by surah." },
     ],
   }),
   component: QuranPage,
@@ -22,28 +23,32 @@ function QuranPage() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [active, setActive] = useState<number>(1);
   const [arabic, setArabic] = useState<Ayah[]>([]);
-  const [english, setEnglish] = useState<Ayah[]>([]);
+  const [translated, setTranslated] = useState<Ayah[]>([]);
   const [loading, setLoading] = useState(false);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const { lang, t } = useLanguage();
 
   useEffect(() => {
     fetch("https://api.alquran.cloud/v1/surah")
       .then((r) => r.json())
       .then((d) => setSurahs(d.data ?? []))
-      .catch(() => toast.error("Could not load surah list"));
+      .catch(() => toast.error(t("quran.loadFail")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     setLoading(true);
+    const translation = lang === "bn" ? "bn.bengali" : "en.sahih";
     Promise.all([
       fetch(`https://api.alquran.cloud/v1/surah/${active}/quran-uthmani`).then((r) => r.json()),
-      fetch(`https://api.alquran.cloud/v1/surah/${active}/en.sahih`).then((r) => r.json()),
+      fetch(`https://api.alquran.cloud/v1/surah/${active}/${translation}`).then((r) => r.json()),
     ])
-      .then(([a, e]) => { setArabic(a.data?.ayahs ?? []); setEnglish(e.data?.ayahs ?? []); })
-      .catch(() => toast.error("Could not load surah"))
+      .then(([a, e]) => { setArabic(a.data?.ayahs ?? []); setTranslated(e.data?.ayahs ?? []); })
+      .catch(() => toast.error(t("quran.loadFail")))
       .finally(() => setLoading(false));
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, lang]);
 
   useEffect(() => {
     if (!user) { setBookmarks(new Set()); return; }
@@ -52,7 +57,7 @@ function QuranPage() {
   }, [user]);
 
   const toggleBookmark = async (surahNum: number, ayahNum: number, label: string) => {
-    if (!user) { toast.error("Sign in to bookmark"); return; }
+    if (!user) { toast.error(t("common.signInToBookmark")); return; }
     const refKey = `${surahNum}:${ayahNum}`;
     if (bookmarks.has(refKey)) {
       await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("kind", "ayah").eq("ref_key", refKey);
@@ -60,7 +65,7 @@ function QuranPage() {
     } else {
       await supabase.from("bookmarks").insert({ user_id: user.id, kind: "ayah", ref_key: refKey, label });
       setBookmarks((s) => new Set(s).add(refKey));
-      toast.success("Ayah bookmarked");
+      toast.success(t("quran.bookmarked"));
     }
   };
 
