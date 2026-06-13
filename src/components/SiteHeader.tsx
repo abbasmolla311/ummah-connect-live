@@ -2,27 +2,30 @@ import { Link } from "@tanstack/react-router";
 import { Menu, X, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const links = [
-  { to: "/", label: "Home" },
-  { to: "/live", label: "Live Azan" },
-  { to: "/mosques", label: "Mosques" },
-  { to: "/prayer-times", label: "Prayer Times" },
-  { to: "/quran", label: "Quran" },
-  { to: "/hadith", label: "Hadith" },
-  { to: "/duas", label: "Duas" },
-  { to: "/qibla", label: "Qibla" },
-  { to: "/tasbih", label: "Tasbih" },
-  { to: "/calendar", label: "Calendar" },
-  { to: "/zakat", label: "Zakat" },
-  { to: "/events", label: "Events" },
-  { to: "/announcements", label: "Announcements" },
-  { to: "/bookmarks", label: "Bookmarks" },
+  { to: "/", key: "nav.home" },
+  { to: "/live", key: "nav.live" },
+  { to: "/mosques", key: "nav.mosques" },
+  { to: "/prayer-times", key: "nav.prayer" },
+  { to: "/quran", key: "nav.quran" },
+  { to: "/hadith", key: "nav.hadith" },
+  { to: "/duas", key: "nav.duas" },
+  { to: "/qibla", key: "nav.qibla" },
+  { to: "/tasbih", key: "nav.tasbih" },
+  { to: "/calendar", key: "nav.calendar" },
+  { to: "/zakat", key: "nav.zakat" },
+  { to: "/events", key: "nav.events" },
+  { to: "/announcements", key: "nav.announcements" },
+  { to: "/bookmarks", key: "nav.bookmarks" },
 ] as const;
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
@@ -46,24 +49,26 @@ export function SiteHeader() {
               className="rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               activeProps={{ className: "rounded-md px-2.5 py-2 text-sm font-medium text-primary bg-accent" }}
             >
-              {l.label}
+              {t(l.key)}
             </Link>
           ))}
+
+          <LanguageToggle className="ml-2" />
 
           {user ? (
             <>
               <Link
                 to="/mosque-admin"
-                className="rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                activeProps={{ className: "rounded-md px-2.5 py-2 text-sm font-medium text-primary bg-accent" }}
+                className="ml-1 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                activeProps={{ className: "ml-1 rounded-md px-2.5 py-2 text-sm font-medium text-primary bg-accent" }}
               >
-                <Settings className="inline h-4 w-4 mr-1" />Admin
+                <Settings className="inline h-4 w-4 mr-1" />{t("nav.admin")}
               </Link>
               <button
                 onClick={signOut}
                 className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
               >
-                <LogOut className="h-3.5 w-3.5" /> Sign out
+                <LogOut className="h-3.5 w-3.5" /> {t("nav.signOut")}
               </button>
             </>
           ) : (
@@ -71,18 +76,21 @@ export function SiteHeader() {
               to="/auth"
               className="ml-2 inline-flex items-center gap-2 rounded-full bg-gradient-gold px-4 py-2 text-sm font-semibold text-gold-foreground shadow-gold transition-transform hover:scale-[1.02]"
             >
-              Sign in
+              {t("nav.signIn")}
             </Link>
           )}
         </nav>
 
-        <button
-          className="xl:hidden rounded-md p-2 text-foreground hover:bg-accent"
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Toggle menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2 xl:hidden">
+          <LanguageToggle />
+          <button
+            className="rounded-md p-2 text-foreground hover:bg-accent"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -95,7 +103,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
-                {l.label}
+                {t(l.key)}
               </Link>
             ))}
             {user ? (
@@ -105,13 +113,13 @@ export function SiteHeader() {
                   onClick={() => setOpen(false)}
                   className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
                 >
-                  Admin
+                  {t("nav.admin")}
                 </Link>
                 <button
                   onClick={() => { setOpen(false); signOut(); }}
                   className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-accent"
                 >
-                  Sign out
+                  {t("nav.signOut")}
                 </button>
               </>
             ) : (
@@ -120,7 +128,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="col-span-full rounded-md bg-gradient-gold px-3 py-2.5 text-center text-sm font-semibold text-gold-foreground"
               >
-                Sign in
+                {t("nav.signIn")}
               </Link>
             )}
           </div>
