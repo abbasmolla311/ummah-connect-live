@@ -44,9 +44,9 @@ function EventsPage() {
     setEvents((data ?? []) as unknown as EventRow[]);
     const ids = (data ?? []).map((e) => e.id);
     if (ids.length) {
-      const { data: rsvps } = await supabase.from("event_rsvps").select("event_id").in("event_id", ids);
+      const { data: rsvps } = await supabase.rpc("get_event_attendee_counts", { event_ids: ids });
       const c: Record<string, number> = {};
-      (rsvps ?? []).forEach((r) => { c[r.event_id] = (c[r.event_id] ?? 0) + 1; });
+      (rsvps ?? []).forEach((r: { event_id: string; count: number }) => { c[r.event_id] = Number(r.count); });
       setCounts(c);
     }
     if (user) {
