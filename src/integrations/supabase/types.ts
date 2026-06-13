@@ -444,6 +444,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_event_attendee_counts: {
+        Args: { event_ids: string[] }
+        Returns: {
+          count: number
+          event_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

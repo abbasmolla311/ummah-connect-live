@@ -12,7 +12,15 @@ type Mosque = { id: string; name: string; city: string; latitude: number | null;
 export const Route = createFileRoute("/api/public/hooks/prayer-push")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const cronSecret = process.env.CRON_SECRET;
+        if (!cronSecret) {
+          console.error("[prayer-push] CRON_SECRET not configured");
+          return new Response("Not configured", { status: 503 });
+        }
+        if (request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+          return new Response("Unauthorized", { status: 401 });
+        }
         const startedAt = new Date();
         try {
           const [{ data: profiles }, { data: subs }, { data: mosques }] = await Promise.all([
